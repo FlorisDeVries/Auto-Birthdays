@@ -12,6 +12,7 @@ For each contact with a birthday, it adds an all-day event in your Google Calend
 ## Setup Instructions
 1. **Open Google Apps Script**: Navigate to [Google Apps Script](https://script.google.com) and create a new project
 2. **Copy the Script**: Copy the provided script into the script editor
+   - Add the "People API" via "Resources +"
 3. **Customize Script**: Replace the `calendarID` on line 16 with the target CalendarID
    - Navigate to [Calendar settings](https://calendar.google.com/calendar/u/0/r/settings)
    - Select desired calendar on the left
