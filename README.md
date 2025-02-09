@@ -1,5 +1,7 @@
 # Auto-Birthdays: Google Apps Script for Birthday Reminders
 
+![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 ## Overview
 This script automates the process of updating and creating birthday events in Google Calendar based on your Google Contacts. 
 For each contact with a birthday, it adds an all-day event in your Google Calendar and sets a reminder a week in advance.
@@ -37,11 +39,16 @@ This script automatically updates and creates birthday events in Google Calendar
 
 The script runs daily and will check these birthdays, adding or updating events in your Google Calendar accordingly.
 
-## Usage
-The script will run automatically once every day, updating your Google Calendar with the latest birthday information from your Google Contacts.
+## Examples
+Here are some examples of how the events will look in Google Calendar:
+
+![Example Event](img/example.png)
 
 ## Troubleshooting
 If you encounter issues, check the Google Apps Script execution log for error messages. Ensure that your Google Calendar and Contacts permissions are correctly set.
+
+## Contributing
+Contributions are welcome!
 
 ## License
 This script is released under the MIT License.
