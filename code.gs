@@ -4,10 +4,7 @@
  */
 function loopThroughContacts() {
   // Get all contacts with names and birthdays.
-  var response = People.People.Connections.list('people/me', {
-    personFields: 'names,birthdays'
-  });
-  var connections = response.connections || [];
+  var connections = getAllContacts()
   
   // Iterate over each contact.
   for (var i = 0; i < connections.length; i++) {
@@ -30,6 +27,34 @@ function loopThroughContacts() {
       }
     }
   }
+}
+
+/**
+ * Get all contacts, using pagination.
+ */
+function getAllContacts() {
+  var connections = [];
+  var nextPageToken = undefined;
+  
+  do {
+    var reqOpts = {
+      personFields: 'names,birthdays',
+      sortOrder: 'LAST_NAME_ASCENDING',
+      pageSize: 100,
+    }
+
+    if (nextPageToken != undefined) {
+      reqOpts.pageToken = nextPageToken
+    }
+
+    var response = People.People.Connections.list('people/me', reqOpts);
+
+    connections.push(...response.connections)
+    nextPageToken = response.nextPageToken
+
+  } while (nextPageToken != undefined)
+  
+  return connections
 }
 
 /**
