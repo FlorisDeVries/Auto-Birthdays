@@ -81,6 +81,10 @@ function updateOrCreateBirthDayEvent(person, birthdayDate) {
   }
   
   var calendar = CalendarApp.getCalendarById(calendarId);
+  if (!calendar) {
+    Logger.log("Warning: No calendar found for the given calendarId.");
+    return;
+  }
   
   // Calculate the next birthday date.
   var nextBirthday = calculateNextBirthday(birthdayDate);
