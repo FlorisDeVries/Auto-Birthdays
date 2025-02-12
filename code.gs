@@ -74,7 +74,17 @@ function updateOrCreateBirthDayEvent(person, birthdayDate) {
 
   // Replace with your calendar ID.
   var calendarId = "";
+  // Added warning if calendarId is not filled in.
+  if (!calendarId) {
+    Logger.log("Warning: calendarId is not filled in. Please change in script.");
+    return;
+  }
+  
   var calendar = CalendarApp.getCalendarById(calendarId);
+  if (!calendar) {
+    Logger.log("Warning: No calendar found for the given calendarId.");
+    return;
+  }
   
   // Calculate the next birthday date.
   var nextBirthday = calculateNextBirthday(birthdayDate);
@@ -88,6 +98,8 @@ function updateOrCreateBirthDayEvent(person, birthdayDate) {
   // Build the event title.
   var suffix = (ageAtNextBirthday !== "" ? ("'s birthday (" + ageAtNextBirthday + ")") : "'s birthday");
   var title = contactName + suffix;
+
+  var oneDayReminder = 1 * 24 * 60; // minutes in 1 day
 
   // See if an event already exists on the birthday date.
   var birthdayEvent = findBirthdayEvent(calendar, contactName, nextBirthday);
@@ -103,7 +115,6 @@ function updateOrCreateBirthDayEvent(person, birthdayDate) {
     
     // Add a popup reminder (1 day before) if not already present.
     var reminders = birthdayEvent.getPopupReminders();
-    var oneDayReminder = 1 * 24 * 60; // minutes in 1 day
     if (reminders.indexOf(oneDayReminder) === -1) {
       birthdayEvent.addPopupReminder(oneDayReminder);
     }
