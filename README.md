@@ -1,57 +1,117 @@
-# Auto-Birthdays: Google Apps Script for Birthday Reminders
+# 🎉 Auto-Birthdays
 
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+This Google Apps Script creates birthday events in your Google Calendar based on your Google Contacts.
 
-## Overview
-This script automates the process of updating and creating birthday events in Google Calendar based on your Google Contacts. 
-For each contact with a birthday, it adds an all-day event in your Google Calendar and sets a reminder a week in advance.
+---
 
-## Features
-- **Automatically Update Events**: Updates titles of existing events to include age and sets them as all-day events.
-- **Create New Events**: If no birthday event exists for a contact, creates a new all-day event with a reminder.
-- **Daily Automation**: Designed to run daily to keep your calendar updated.
+## 🚀 Getting Started
 
-## Setup Instructions
-1. **Open Google Apps Script**: Navigate to [Google Apps Script](https://script.google.com) and create a new project
-2. **Copy the Script**: Copy the provided script into the script editor
-   - Add the "People API" via "Resources +"
-3. **Customize Script**: Replace the `calendarID` on line 76 with the target CalendarID
-   - Navigate to [Calendar settings](https://calendar.google.com/calendar/u/0/r/settings)
-   - Select desired calendar on the left
-   - Scroll down to find `Calendar ID`
-4. **Set Trigger**: Set a daily trigger to run the `loopThroughContacts` function
-    - Click on the clock icon (Triggers) on the left sidebar
-    - Click on "+ Add Trigger" at the bottom right corner of the screen
-    - Choose the function you want to run from the "Choose which function to run" dropdown (loopThroughContacts)
-    - Choose "Time-driven" from the "Select event source" dropdown
-    - Choose the type of time trigger (e.g., "Day timer") and specify the time range
-5. **Run & Permissions**: From the script editor click on "Run" and accept permissions when asked
-6. **Deploy**: Save changes
+This project uses **Google Apps Script** and the **Google People API**.
 
-## Usage
-This script automatically updates and creates birthday events in Google Calendar based on birthdays in your Google Contacts. To ensure it works correctly:
+1. Open [Google Apps Script](https://script.google.com/) and create a new script.
+2. Copy the contents of `code.gs` into the editor.
+3. Go to the **left bar → Services** and add the **People API** to the project.
+4. Edit the `CONFIG` section at the top of the script (see below).
+5. Run `loopThroughContacts()` once to:
+   - Generate birthday events
+   - Set up a time-based trigger (if enabled)
 
-1. **Adding Birthdays to Contacts**:
-   - Navigate to [Google Contacts](https://contacts.google.com) or go-to contacts on your phone
-   - Select a contact to edit
-   - Add or edit the birthday
-   - Save the contact
+---
 
-The script runs daily and will check these birthdays, adding or updating events in your Google Calendar accordingly.
+## ⚙️ Configuration
 
-## Examples
-Here are some examples of how the events will look in Google Calendar:
+At the top of the script you'll find the `CONFIG` object to control behavior:
+
+```javascript
+const CONFIG = {
+  calendarId: 'primary',
+  useEmoji: true,
+  useRecurrence: true,
+  showYear: true,
+  reminderMinutesBefore: 1 * 24 * 60,
+  recurrenceYears: 50,
+
+  useTrigger: true,
+  triggerFrequency: 'daily',  // 'daily' or 'hourly'
+  triggerHour: 4              // Only used if frequency is 'daily'
+};
+```
+
+---
+
+## 🖋️ Title Format Examples
+
+| useEmoji | useRecurrence | showYear | Event Title Example     |
+|----------|----------------|----------|--------------------------|
+| true     | true           | true     | 🎂 John Doe (*1988)       |
+| true     | true           | false    | 🎂 John Doe (36)          |
+| false    | false          | false    | John Doe (36)            |
+| false    | true           | true     | John Doe (*1988)         |
+
+If no birth year is available, the title will only include the name.
+
+---
+
+## ⏰ Trigger Behavior
+
+If `CONFIG.useTrigger` is `true`, the script will:
+
+- Automatically create a **time-based trigger**
+- Run either:
+  - **Hourly** every hour
+  - Or **Daily** at `triggerHour`
+
+🛠️ If you change the trigger settings, the script will:
+- **Remove any existing trigger**
+- **Install a new one with the updated config**
+
+This ensures only **one correct trigger** is active.
+
+---
+
+## 🗓️ Examples
+
+Here are some examples of how the events will look in your Google Calendar:
+
+- 🎂 John Doe (*1988)
+- 🎂 Jane Smith (36)
+- John Appleseed (no year provided)
+
+All events appear as **all-day events** on the person’s birthday.
 
 ![Example Event](img/example.png)
 
-## Troubleshooting
-If you encounter issues, check the Google Apps Script execution log for error messages. Ensure that your Google Calendar and Contacts permissions are correctly set.
+---
 
-## Contributing
-Contributions are welcome!
+## 🧰 Troubleshooting
 
-## License
-This script is released under the MIT License.
+If you encounter issues:
 
-## Contact
-For support or queries, please file an issue in the project repository.
+- Check the **Apps Script execution log**
+- Ensure you've **enabled the People API** under **Services**
+- Make sure you've granted **Calendar and Contacts permissions**
+- Run `loopThroughContacts()` manually the first time
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Fork this repo, improve it, and submit a pull request.
+
+---
+
+## 📄 License
+
+This script is released under the **MIT License**.
+
+---
+
+## 💬 Contact
+
+For support or feedback, please [file an issue](https://github.com/willi84/Auto-Birthdays/issues).
+
+---
+
+## 🤖 Tip
+
+This script was enhanced with help from **ChatGPT**.
