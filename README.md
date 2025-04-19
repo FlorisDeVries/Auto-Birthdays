@@ -8,53 +8,78 @@ This Google Apps Script creates birthday events in your Google Calendar based on
 
 This project uses **Google Apps Script** and the **Google People API**.
 
-1. Open [Google Apps Script](https://script.google.com/) and create a new script.
-2. Copy the contents of `code.gs` into the editor.
-3. Go to the **left bar → Services** and add the **People API** to the project.
-4. Edit the `CONFIG` section at the top of the script (see below).
+1. Open [Google Apps Script](https://script.google.com/) and create a new project.
+2. Paste the contents of `code.gs` into the editor.
+3. In the left sidebar, go to **Services** and add the **People API**.
+4. Modify the `CONFIG` section at the top of the script (see below).
 5. Run `loopThroughContacts()` once to:
    - Generate birthday events
+   - Optionally clean up outdated ones
    - Set up a time-based trigger (if enabled)
 
 ---
 
 ## ⚙️ Configuration
 
-At the top of the script you'll find the `CONFIG` object to control behavior:
+The CONFIG object gives you full control over how events are created and managed:
 
 ```javascript
 const CONFIG = {
-  calendarId: 'primary',
-  useEmoji: true,
-  useRecurrence: true,
-  showYear: true,
-  reminderMinutesBefore: 1 * 24 * 60,
-  recurrenceYears: 50,
+  calendarId: 'primary',             // 'primary' or your custom calendar ID
 
-  useTrigger: true,
-  triggerFrequency: 'daily',  // 'daily' or 'hourly'
-  triggerHour: 4              // Only used if frequency is 'daily'
+  // Title customization
+  useEmoji: true,                    // Add 🎂 emoji to event titles
+  showYearOrAge: true,               // Recurrence on: shows (*YYYY), off: shows (age)
+
+  // Recurrence
+  useRecurrence: true,               // Create recurring yearly events
+  futureYears: 20,                   // Recurring events end this many years in the future
+  pastYears: 2,                      // Recurring events start this many years in the past
+
+  // Reminder settings
+  reminderMinutesBefore: 1440,       // Popup reminder (in minutes); 1440 = 1 day before
+
+  // Cleanup
+  cleanupEvents: true,               // ⚠️ Deletes all matching birthday events between ±100 years
+
+  // Trigger options
+  useTrigger: true,                  // Automatically run on a schedule
+  triggerFrequency: 'daily',         // 'daily' or 'hourly'
+  triggerHour: 4                     // If 'daily', the hour of day to run (0–23)
 };
 ```
 
 ---
 
-## 🖋️ Title Format Examples
+## 🖋️ Event Title Formats
 
-| useEmoji | useRecurrence | showYear | Event Title Example     |
-|----------|----------------|----------|--------------------------|
-| true     | true           | true     | 🎂 John Doe (*1988)       |
-| true     | true           | false    | 🎂 John Doe (36)          |
-| false    | false          | false    | John Doe (36)            |
-| false    | true           | true     | John Doe (*1988)         |
+Depending on your configuration, birthday events will appear with different formats:
 
-If no birth year is available, the title will only include the name.
+| `useEmoji` | `useRecurrence` | `showYearOrAge` | `Event Title Example`     |
+|------------|-----------------|-----------------|---------------------------|
+| true       | true            | true            | 🎂 John Doe (*1988)       |
+| true       | false           | false           | 🎂 John Doe (36)          |
+| false      | true            | false           | John Doe                  |
+| false      | false           | true            | John Doe (36)             |
+| false      | false           | false           | John Doe                  |
+
+If no birth year is provided, age or year is omitted.
+
+---
+
+## 🧹 Automatic Cleanup
+
+If `CONFIG.cleanupEvents` is enabled:
+
+- Search your calendar between 100 years in the past and future
+- Find outdated or duplicate birthday events
+- Delete them safely, including recurring series
 
 ---
 
 ## ⏰ Trigger Behavior
 
-If `CONFIG.useTrigger` is `true`, the script will:
+If `CONFIG.useTrigger` is enabled:
 
 - Automatically create a **time-based trigger**
 - Run either:
@@ -71,7 +96,7 @@ This ensures only **one correct trigger** is active.
 
 ## 🗓️ Examples
 
-Here are some examples of how the events will look in your Google Calendar:
+You'll see all-day birthday events appear in your calendar like these:
 
 - 🎂 John Doe (*1988)
 - 🎂 Jane Smith (36)
@@ -88,9 +113,9 @@ All events appear as **all-day events** on the person’s birthday.
 If you encounter issues:
 
 - Check the **Apps Script execution log**
+- Run the script **manually the first time** to authorize permissions
 - Ensure you've **enabled the People API** under **Services**
 - Make sure you've granted **Calendar and Contacts permissions**
-- Run `loopThroughContacts()` manually the first time
 
 ---
 
@@ -108,10 +133,4 @@ This script is released under the **MIT License**.
 
 ## 💬 Contact
 
-For support or feedback, please [file an issue](https://github.com/willi84/Auto-Birthdays/issues).
-
----
-
-## 🤖 Tip
-
-This script was enhanced with help from **ChatGPT**.
+For support or feedback, please [file an issue](https://github.com/FlorisDeVries/Auto-Birthdays/issues).
