@@ -2,21 +2,21 @@
  * CONFIGURATION
  ******************************/
 const CONFIG = {
-  calendarId: 'primary',            // primary or your calendar ID
+  calendarId: 'primary',             // primary or your calendar ID
   // Title customization
-  useEmoji: true,                     // Add 🎂 emoji to event titles
+  useEmoji: true,                    // Add 🎂 emoji to event titles
   showYearOrAge: true,               // Recurrence on: shows (*YYYY), off: shows (age)
 
   // Recurrence
   useRecurrence: true,               // Create recurring yearly events
-  futureYears: 20,                   // Recurring events end this many years in the future
-  pastYears: 2,                      // Recurring events start this many years in the past
+  futureYears: 10,                   // Recurring events end this many years in the future
+  pastYears: 1,                      // Recurring events start this many years in the past
 
   // Reminder settings
   reminderMinutesBefore: 1440,       // Popup reminder (in minutes); 1440 = 1 day before
 
   // Cleanup
-  cleanupEvents: true,               // ⚠️ Deletes all matching birthday events between ±100 years
+  cleanupEvents: false,              // ⚠️ Deletes all matching birthday events between ±100 years
 
   // Trigger options
   useTrigger: true,                  // Automatically run on a schedule
