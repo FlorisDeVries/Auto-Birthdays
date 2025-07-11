@@ -227,7 +227,7 @@ function findBirthdayEvents(allEvents, contactName, month, day) {
     const title = ev.getTitle();
     const d     = ev.getStartTime();
     return ev.isAllDayEvent() &&
-           (title.includes(contactName) || (d.getMonth() === month && d.getDate() === day));
+           (title.includes(contactName) && (d.getMonth() === month && d.getDate() === day));
   });
 }
 
