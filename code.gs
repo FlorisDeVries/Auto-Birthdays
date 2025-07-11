@@ -16,7 +16,7 @@ const CONFIG = {
   reminderMinutesBefore: 1440,       // Popup reminder (in minutes); 1440 = 1 day before
 
   // Cleanup
-  cleanupEvents: false,              // ⚠️ Deletes all matching birthday events between ±100 years
+  cleanupEvents: false,              // ⚠️⚠️⚠️ Deletes all matching birthday events between ±100 years
 
   // Trigger options
   useTrigger: true,                  // Automatically run on a schedule
@@ -51,13 +51,29 @@ function loopThroughContacts() {
   const startDate = new Date(currentYear - CONFIG.pastYears - 1, 0, 1);
   const endDate = new Date(currentYear + CONFIG.futureYears + 1, 11, 31);
   const allEvents = calendar.getEvents(startDate, endDate);
+  const eventIndex  = buildBirthdayIndex(allEvents);
 
   for (const person of connections) {
     const birthdayData = person.birthdays?.find(b => b.date);
     if (birthdayData) {
-      updateOrCreateBirthDayEvent(person, birthdayData, calendar, allEvents);
+      updateOrCreateBirthDayEvent(person, birthdayData, calendar, allEvents, eventIndex);
     }
   }
+}
+
+/**
+ * Build a quick‑lookup map keying events by “title|month|day”.
+ * Significantly reduces runtime from O(contacts × events) to O(contacts + events).
+ */
+function buildBirthdayIndex(events) {
+  const map = new Map();
+  for (const ev of events) {
+    if (!ev.isAllDayEvent()) continue;
+    const d   = ev.getStartTime();
+    const key = `${ev.getTitle()}|${d.getMonth()}|${d.getDate()}`;
+    map.set(key, ev);
+  }
+  return map;
 }
 
 /**
@@ -86,7 +102,7 @@ function getAllContacts() {
 /**
  * Create or update a calendar event for a contact's birthday.
  */
-function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents) {
+function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, eventIndex) {
   const contactName = getContactName(person);
 
   // Extract actual date from birthday object
@@ -119,8 +135,17 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents) {
     expectedTitle += CONFIG.useRecurrence ? ` (*${birthdayDate.year})` : ` (${age})`;
   }
 
+  // FAST existence check
+  const key = `${expectedTitle}|${month}|${day}`;
+  const existingQuick = eventIndex.get(key);
+  if (existingQuick &&
+      existingQuick.isAllDayEvent() &&
+      (CONFIG.useRecurrence === (existingQuick.isRecurringEvent && existingQuick.isRecurringEvent()))) {
+    return; // nothing to do
+  }
+
   // Find and update related events
-  const relatedEvents = findBirthdayEvents(allEvents, contactName, birthdayDate);
+  const relatedEvents = findBirthdayEvents(allEvents, contactName, month, day);
   const deletedSeriesIds = new Set();
   let correctEventExists = false;
 
@@ -197,21 +222,12 @@ function getContactName(person) {
 /**
  * Check if birthday event already exists.
  */
-function findBirthdayEvents(allEvents, contactName, birthdayDate) {
-  return allEvents.filter(event => {
-    const title = event.getTitle();
-    const start = event.getStartTime();
-
-    const isNameMatch = title.includes(contactName);
-    const isBirthdayDateMatch =
-      start.getDate() === birthdayDate.day &&
-      start.getMonth() === birthdayDate.month - 1;
-
-    return (
-      isNameMatch &&
-      event.isAllDayEvent() &&
-      (title.trim().startsWith('🎂') || isBirthdayDateMatch)
-    );
+function findBirthdayEvents(allEvents, contactName, month, day) {
+  return allEvents.filter(ev => {
+    const title = ev.getTitle();
+    const d     = ev.getStartTime();
+    return ev.isAllDayEvent() &&
+           (title.includes(contactName) && (d.getMonth() === month && d.getDate() === day));
   });
 }
 
