@@ -17,6 +17,14 @@ This project uses **Google Apps Script** and the **Google People API**.
    - Optionally clean up outdated ones
    - Set up a time-based trigger (if enabled)
 
+> **⚠️ DATA-LOSS WARNING**  
+> The script **deletes any all-day event whose date and title look like a birthday** so it can rebuild a clean set each run.  
+> That can accidentally match anniversaries, retirements, “Remembrance”, etc.  
+> **Protect yourself:**
+> 1. **Use a separate calendar** (create one called “Birthdays”) and point `CONFIG.calendarId` to it.  
+> 2. Keep `CONFIG.cleanupEvents = false` until you have verified everything on a test calendar.  
+> 3. If something disappears, restore it from **Calendar Trash/Bin** within 30 days.
+
 ---
 
 ## ⚙️ Configuration
@@ -40,7 +48,7 @@ const CONFIG = {
   reminderMinutesBefore: 1440,       // Popup reminder (in minutes); 1440 = 1 day before
 
   // Cleanup
-  cleanupEvents: true,               // ⚠️ Deletes all matching birthday events between ±100 years
+  cleanupEvents: false,               // ⚠️⚠️⚠️ Deletes all matching birthday events between ±100 years
 
   // Trigger options
   useTrigger: true,                  // Automatically run on a schedule
@@ -116,6 +124,7 @@ If you encounter issues:
 - Run the script **manually the first time** to authorize permissions
 - Ensure you've **enabled the People API** under **Services**
 - Make sure you've granted **Calendar and Contacts permissions**
+- Restore missing items via Calendar → Trash/Bin.
 
 ---
 
