@@ -2,7 +2,8 @@
  * CONFIGURATION
  ******************************/
 const CONFIG = {
-  calendarId: 'primary',             // primary or your calendar ID
+  calendarId: 'primary',            // 'primary' or your calendar ID
+
   // Title customization
   useEmoji: true,                    // Add 🎂 emoji to event titles
   showYearOrAge: true,               // Recurrence on: shows (*YYYY), off: shows (age)
@@ -21,7 +22,10 @@ const CONFIG = {
   // Trigger options
   useTrigger: true,                  // Automatically run on a schedule
   triggerFrequency: 'daily',         // 'daily' or 'hourly'
-  triggerHour: 4                     // If 'daily', the hour of day to run (0–23)
+  triggerHour: 4,                    // If 'daily', the hour of day to run (0–23)
+
+  // Script identification
+  scriptKey: 'CREATED_BY_FlorisDeVries/Auto-Birthdays' // Unique identifier for events created by this script
 };
 
 /**
@@ -140,6 +144,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
   const existingQuick = eventIndex.get(key);
   if (existingQuick &&
       existingQuick.isAllDayEvent() &&
+      isEventCreatedByScript(existingQuick) &&
       (CONFIG.useRecurrence === (existingQuick.isRecurringEvent && existingQuick.isRecurringEvent()))) {
     return; // nothing to do
   }
@@ -154,8 +159,9 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     const isTitleOutdated = title !== expectedTitle;
     const isNotAllDay = !event.isAllDayEvent();
     const isRecurrenceMismatch = CONFIG.useRecurrence !== (event.isRecurringEvent && event.isRecurringEvent());
+    const isNotFromScript = !isEventCreatedByScript(event);
 
-    if (isTitleOutdated || isNotAllDay || isRecurrenceMismatch) {
+    if (isTitleOutdated || isNotAllDay || isRecurrenceMismatch || isNotFromScript) {
       try {
         if (event.isRecurringEvent && event.isRecurringEvent()) {
           
@@ -183,6 +189,9 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     return;
   }
 
+  // Create event description with script key
+  const eventDescription = `🎂 Happy Birthday ${contactName}\n\n[${CONFIG.scriptKey}]`;
+
   // Create one new event — recurring or one-time
   if (CONFIG.useRecurrence) {
     const recurrence = CalendarApp.newRecurrence()
@@ -193,7 +202,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       expectedTitle,
       birthdayStartDate,
       recurrence,
-      { description: `🎂 Happy Birthday ${contactName}` }
+      { description: eventDescription }
     );
     eventSeries.addPopupReminder(CONFIG.reminderMinutesBefore);
     Logger.log(`🎉 Created RECURRING event: ${expectedTitle} [starts ${birthdayStartDate.toDateString()}]`);
@@ -201,10 +210,22 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     const event = calendar.createAllDayEvent(
       expectedTitle,
       birthdayDateThisYear,
-      { description: `🎂 Happy Birthday ${contactName}` }
+      { description: eventDescription }
     );
     event.addPopupReminder(CONFIG.reminderMinutesBefore);
     Logger.log(`🎁 Created ONE-TIME event: ${expectedTitle} [${birthdayDateThisYear.toDateString()}]`);
+  }
+}
+
+/**
+ * Check if an event was created by this script by looking for the script key in description.
+ */
+function isEventCreatedByScript(event) {
+  try {
+    const description = event.getDescription();
+    return description && description.includes(`[${CONFIG.scriptKey}]`);
+  } catch (e) {
+    return false;
   }
 }
 
@@ -284,6 +305,7 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
     const start = event.getStartTime();
     const isAllDay = event.isAllDayEvent();
     const startsWithCakeEmoji = title.trim().startsWith('🎂');
+    const isFromScript = isEventCreatedByScript(event);
 
     for (const contact of contactBirthdays) {
       const isNameMatch = title.includes(contact.name);
@@ -292,8 +314,9 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
         start.getMonth() === contact.month;
 
       const shouldDelete =
-        (startsWithCakeEmoji && isNameMatch) ||
-        (isAllDay && isNameMatch && isBirthdayDateMatch);
+        isFromScript && // Only delete events created by this script
+        ((startsWithCakeEmoji && isNameMatch) ||
+         (isAllDay && isNameMatch && isBirthdayDateMatch));
 
       if (!shouldDelete) continue;
 
@@ -311,7 +334,7 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
         } catch (e) {
           Logger.log(`⚠️ Failed to resolve recurring series: ${title} — ${e}`);
           Logger.log(`⚠️ Waiting for rate limiter and safely retrying`);
-          Utilities.sleep(5000)
+          Utilities.sleep(5000);
           try {
             const series = event.getEventSeries();
             const seriesId = series.getId();
