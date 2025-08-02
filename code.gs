@@ -25,7 +25,7 @@ const CONFIG = {
   triggerHour: 4,                    // If 'daily', the hour of day to run (0–23)
 
   // Script identification
-  scriptKey: 'CREATED_BY_FlorisDeVries/Auto-Birthdays' // Unique identifier for events created by this script
+  scriptKey: 'CREATED_BY_Auto-Birthdays' // Unique identifier for events created by this script; customize if desired
 };
 
 /**
