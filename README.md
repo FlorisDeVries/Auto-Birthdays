@@ -38,6 +38,7 @@ const CONFIG = {
   // Title customization
   useEmoji: true,                    // Add 🎂 emoji to event titles
   showYearOrAge: true,               // Recurrence on: shows (*YYYY), off: shows (age)
+  showAgeOnRecurring: false,         // If true, shows (age) on recurring events instead of (*YYYY)
 
   // Recurrence
   useRecurrence: true,               // Create recurring yearly events
@@ -66,15 +67,24 @@ const CONFIG = {
 
 Depending on your configuration, birthday events will appear with different formats:
 
-| `useEmoji` | `useRecurrence` | `showYearOrAge` | `Event Title Example`     |
-|------------|-----------------|-----------------|---------------------------|
-| true       | true            | true            | 🎂 John Doe (*1988)       |
-| true       | false           | false           | 🎂 John Doe (36)          |
-| false      | true            | false           | John Doe                  |
-| false      | false           | true            | John Doe (36)             |
-| false      | false           | false           | John Doe                  |
+| `useEmoji` | `useRecurrence` | `showYearOrAge` | `showAgeOnRecurring` | `Event Title Example`     |
+|------------|-----------------|-----------------|---------------------|---------------------------|
+| true       | true            | true            | false               | 🎂 John Doe (*1988)       |
+| true       | true            | true            | true                | 🎂 John Doe (36)          |
+| true       | false           | true            | N/A                 | 🎂 John Doe (36)          |
+| false      | true            | false           | N/A                 | John Doe                  |
+| false      | false           | true            | N/A                 | John Doe (36)             |
+| false      | false           | false           | N/A                 | John Doe                  |
 
-If no birth year is provided, age or year is omitted.
+**Notes:**
+- `showAgeOnRecurring` only applies when `useRecurrence=true` and `showYearOrAge=true`
+- If no birth year is provided, age or year is omitted
+- When `showAgeOnRecurring=true`, individual events are created for each year instead of recurring events:
+  - 2025: 🎂 John Doe (30)
+  - 2026: 🎂 John Doe (31) 
+  - 2027: 🎂 John Doe (32)
+- This allows you to see all future birthdays with correct ages when browsing your calendar
+- Individual events span from `pastYears` to `futureYears` relative to the current year
 
 ---
 
