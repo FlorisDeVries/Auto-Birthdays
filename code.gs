@@ -7,6 +7,7 @@ const CONFIG = {
   // Title customization
   useEmoji: true,                    // Add 🎂 emoji to event titles
   showYearOrAge: true,               // Recurrence on: shows (*YYYY), off: shows (age)
+  showAgeOnRecurring: false,         // If true, shows (age) on recurring events instead of (*YYYY)
 
   // Recurrence
   useRecurrence: true,               // Create recurring yearly events
@@ -136,13 +137,21 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
   if (CONFIG.useEmoji) expectedTitle += '🎂 ';
   expectedTitle += contactName;
   if (birthdayDate.year && CONFIG.showYearOrAge) {
-    expectedTitle += CONFIG.useRecurrence ? ` (*${birthdayDate.year})` : ` (${age})`;
+    if (CONFIG.useRecurrence && CONFIG.showAgeOnRecurring) {
+      expectedTitle += ` (${age})`;
+    } else {
+      expectedTitle += CONFIG.useRecurrence ? ` (*${birthdayDate.year})` : ` (${age})`;
+    }
   }
 
   // FAST existence check
   const key = `${expectedTitle}|${month}|${day}`;
   const existingQuick = eventIndex.get(key);
-  if (existingQuick &&
+  
+  // For individual age events, we need to check differently
+  const usingIndividualEvents = CONFIG.useRecurrence && CONFIG.showAgeOnRecurring && birthdayDate.year;
+  
+  if (!usingIndividualEvents && existingQuick &&
       existingQuick.isAllDayEvent() &&
       isEventCreatedByScript(existingQuick) &&
       (CONFIG.useRecurrence === (existingQuick.isRecurringEvent && existingQuick.isRecurringEvent()))) {
@@ -161,10 +170,12 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     const isRecurrenceMismatch = CONFIG.useRecurrence !== (event.isRecurringEvent && event.isRecurringEvent());
     const isNotFromScript = !isEventCreatedByScript(event);
 
-    if (isTitleOutdated || isNotAllDay || isRecurrenceMismatch || isNotFromScript) {
+    // When using individual events for age display, we need to delete any existing recurring events
+    const needsConversionToIndividual = usingIndividualEvents && event.isRecurringEvent && event.isRecurringEvent();
+
+    if (isTitleOutdated || isNotAllDay || isRecurrenceMismatch || isNotFromScript || needsConversionToIndividual) {
       try {
         if (event.isRecurringEvent && event.isRecurringEvent()) {
-          
           const series = event.getEventSeries();
           const seriesId = series.getId();
           if (deletedSeriesIds.has(seriesId)) {
@@ -189,11 +200,59 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     return;
   }
 
+  // For individual age events, check if all years already exist
+  if (usingIndividualEvents) {
+    let allYearsExist = true;
+    for (let year = startYear; year <= currentYear + CONFIG.futureYears; year++) {
+      const yearAge = year - birthdayDate.year;
+      let yearTitle = '';
+      if (CONFIG.useEmoji) yearTitle += '🎂 ';
+      yearTitle += contactName;
+      if (CONFIG.showYearOrAge) {
+        yearTitle += ` (${yearAge})`;
+      }
+      
+      const yearKey = `${yearTitle}|${month}|${day}`;
+      const yearEvent = eventIndex.get(yearKey);
+      if (!yearEvent || !isEventCreatedByScript(yearEvent)) {
+        allYearsExist = false;
+        break;
+      }
+    }
+    
+    if (allYearsExist) {
+      return; // All individual events already exist
+    }
+  }
+
   // Create event description with script key
   const eventDescription = `🎂 Happy Birthday ${contactName}\n\n[${CONFIG.scriptKey}]`;
 
-  // Create one new event — recurring or one-time
-  if (CONFIG.useRecurrence) {
+  // Create events - individual yearly events if showing age on recurring, otherwise use recurrence
+  if (CONFIG.useRecurrence && CONFIG.showAgeOnRecurring && birthdayDate.year) {
+    // Create individual events for each year to show correct age
+    for (let year = startYear; year <= currentYear + CONFIG.futureYears; year++) {
+      const yearAge = year - birthdayDate.year;
+      const yearBirthdayDate = new Date(year, month, day);
+      
+      // Build title with age for this specific year
+      let yearTitle = '';
+      if (CONFIG.useEmoji) yearTitle += '🎂 ';
+      yearTitle += contactName;
+      if (CONFIG.showYearOrAge) {
+        yearTitle += ` (${yearAge})`;
+      }
+      
+      const event = calendar.createAllDayEvent(
+        yearTitle,
+        yearBirthdayDate,
+        { description: eventDescription }
+      );
+      event.addPopupReminder(CONFIG.reminderMinutesBefore);
+      Logger.log(`🎁 Created individual event: ${yearTitle} [${yearBirthdayDate.toDateString()}]`);
+    }
+  } else if (CONFIG.useRecurrence) {
+    // Create standard recurring event
     const recurrence = CalendarApp.newRecurrence()
       .addYearlyRule()
       .until(new Date(currentYear + CONFIG.futureYears, 11, 31));
@@ -207,6 +266,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     eventSeries.addPopupReminder(CONFIG.reminderMinutesBefore);
     Logger.log(`🎉 Created RECURRING event: ${expectedTitle} [starts ${birthdayStartDate.toDateString()}]`);
   } else {
+    // Create single event for this year
     const event = calendar.createAllDayEvent(
       expectedTitle,
       birthdayDateThisYear,
