@@ -22,7 +22,7 @@ This project uses **Google Apps Script** and the **Google People API**.
 > That can accidentally match anniversaries, retirements, “Remembrance”, etc.  
 > **Protect yourself:**
 > 1. **Use a separate calendar** (create one called “Birthdays”) and point `CONFIG.calendarId` to it.  
-> 2. Keep `CONFIG.cleanupEvents = false` until you have verified everything on a test calendar.  
+> 2. Keep `CONFIG.cleanupEvents = false` until you have verified everything on a test calendar.
 > 3. If something disappears, restore it from **Calendar Trash/Bin** within 30 days.
 
 ---
@@ -53,7 +53,10 @@ const CONFIG = {
   // Trigger options
   useTrigger: true,                  // Automatically run on a schedule
   triggerFrequency: 'daily',         // 'daily' or 'hourly'
-  triggerHour: 4                     // If 'daily', the hour of day to run (0–23)
+  triggerHour: 4,                    // If 'daily', the hour of day to run (0–23)
+
+  // Script identification
+  scriptKey: 'CREATED_BY_Auto-Birthdays' // Unique identifier for events created by this script
 };
 ```
 
@@ -80,8 +83,11 @@ If no birth year is provided, age or year is omitted.
 If `CONFIG.cleanupEvents` is enabled:
 
 - Search your calendar between 100 years in the past and future
-- Find outdated or duplicate birthday events
+- Find outdated or duplicate birthday events **created by this script only**
 - Delete them safely, including recurring series
+- Manual birthday events are never touched
+
+**Safety Note**: The cleanup only affects events containing the script's unique identifier, ensuring your manually created events remain safe.
 
 ---
 
@@ -99,6 +105,22 @@ If `CONFIG.useTrigger` is enabled:
 - **Install a new one with the updated config**
 
 This ensures only **one correct trigger** is active.
+
+---
+
+## 🔑 Script Identification
+
+The script uses a unique key system to identify events it has created:
+
+- **`scriptKey`**: A unique identifier embedded in each event's description
+- **Safe operation**: Only modifies events it has created, leaving manual birthday events untouched
+- **Easy identification**: You can search for events created by the script using the key
+- **Version tracking**: Update the key for different script versions if needed
+
+**How it works:**
+- Each created event includes `[CREATED_BY_Auto-Birthdays]` in its description
+- The script only deletes/updates events containing this identifier
+- Manual birthday events are completely safe from script operations
 
 ---
 
