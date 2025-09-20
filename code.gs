@@ -39,9 +39,7 @@ const CONFIG = {
 const LANGUAGE_CONFIG = {
   en: {
     titleFormats: {
-      'default': '{emoji}{name} ({ageOrYear})',
-      'birthday': '{emoji}{name}\'s birthday - {age} years',
-      'simple': '{emoji}{name} - {age}'
+      'default': '{emoji}{name} ({ageOrYear})'
     },
     terms: {
       'age': 'age',
@@ -53,9 +51,7 @@ const LANGUAGE_CONFIG = {
   },
   it: {
     titleFormats: {
-      'default': '{emoji}Compleanno di {name} - {age} anni',
-      'birthday': '{emoji}Compleanno di {name} - {age} anni', 
-      'simple': '{emoji}{name} - {age} anni'
+      'default': '{emoji}Compleanno di {name} - {age} anni'
     },
     terms: {
       'age': 'età',
@@ -67,9 +63,7 @@ const LANGUAGE_CONFIG = {
   },
   fr: {
     titleFormats: {
-      'default': '{emoji}Anniversaire de {name} - {age} ans',
-      'birthday': '{emoji}Anniversaire de {name} - {age} ans',
-      'simple': '{emoji}{name} - {age} ans'
+      'default': '{emoji}Anniversaire de {name} - {age} ans'
     },
     terms: {
       'age': 'âge',
@@ -81,9 +75,7 @@ const LANGUAGE_CONFIG = {
   },
   de: {
     titleFormats: {
-      'default': '{emoji}Geburtstag von {name} - {age} Jahre',
-      'birthday': '{emoji}Geburtstag von {name} - {age} Jahre',
-      'simple': '{emoji}{name} - {age} Jahre'
+      'default': '{emoji}Geburtstag von {name} - {age} Jahre'
     },
     terms: {
       'age': 'Alter',
@@ -95,9 +87,7 @@ const LANGUAGE_CONFIG = {
   },
   es: {
     titleFormats: {
-      'default': '{emoji}Cumpleaños de {name} - {age} años',
-      'birthday': '{emoji}Cumpleaños de {name} - {age} años',
-      'simple': '{emoji}{name} - {age} años'
+      'default': '{emoji}Cumpleaños de {name} - {age} años'
     },
     terms: {
       'age': 'edad',
