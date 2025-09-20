@@ -11,7 +11,7 @@ const CONFIG = {
   
   // Language and localization
   language: 'en',                    // Language code: 'en' (English), 'it' (Italian), 'fr' (French), 'de' (German), 'es' (Spanish)
-  titleFormat: '{emoji}{name} ({ageOrYear})', // Title format template (see LANGUAGE_CONFIG for placeholders)
+  titleFormat: '',                   // Title format template (see LANGUAGE_CONFIG for placeholders), e.g. {emoji}{name} ({ageOrYear})
 
   // Recurrence
   useRecurrence: true,               // Create recurring yearly events
