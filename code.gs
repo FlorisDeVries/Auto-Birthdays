@@ -8,6 +8,10 @@ const CONFIG = {
   useEmoji: true,                    // Add 🎂 emoji to event titles
   showYearOrAge: true,               // Recurrence on: shows (*YYYY), off: shows (age)
   showAgeOnRecurring: false,         // If true, shows (age) on recurring events instead of (*YYYY)
+  
+  // Language and localization
+  language: 'en',                    // Language code: 'en' (English), 'it' (Italian), 'fr' (French), 'de' (German), 'es' (Spanish)
+  titleFormat: '{emoji}{name} ({ageOrYear})', // Title format template (see LANGUAGE_CONFIG for placeholders)
 
   // Recurrence
   useRecurrence: true,               // Create recurring yearly events
@@ -28,6 +32,154 @@ const CONFIG = {
   // Script identification
   scriptKey: 'CREATED_BY_Auto-Birthdays' // Unique identifier for events created by this script; customize if desired
 };
+
+/**
+ * Language configuration for localized event titles and descriptions
+ */
+const LANGUAGE_CONFIG = {
+  en: {
+    titleFormats: {
+      'default': '{emoji}{name} ({ageOrYear})',
+      'birthday': '{emoji}{name}\'s birthday - {age} years',
+      'simple': '{emoji}{name} - {age}'
+    },
+    terms: {
+      'age': 'age',
+      'years': 'years',
+      'year': 'year',
+      'birthday': 'birthday',
+      'happyBirthday': 'Happy Birthday'
+    }
+  },
+  it: {
+    titleFormats: {
+      'default': '{emoji}Compleanno di {name} - {age} anni',
+      'birthday': '{emoji}Compleanno di {name} - {age} anni', 
+      'simple': '{emoji}{name} - {age} anni'
+    },
+    terms: {
+      'age': 'età',
+      'years': 'anni',
+      'year': 'anno',
+      'birthday': 'compleanno',
+      'happyBirthday': 'Buon Compleanno'
+    }
+  },
+  fr: {
+    titleFormats: {
+      'default': '{emoji}Anniversaire de {name} - {age} ans',
+      'birthday': '{emoji}Anniversaire de {name} - {age} ans',
+      'simple': '{emoji}{name} - {age} ans'
+    },
+    terms: {
+      'age': 'âge',
+      'years': 'ans',
+      'year': 'an',
+      'birthday': 'anniversaire',
+      'happyBirthday': 'Joyeux Anniversaire'
+    }
+  },
+  de: {
+    titleFormats: {
+      'default': '{emoji}Geburtstag von {name} - {age} Jahre',
+      'birthday': '{emoji}Geburtstag von {name} - {age} Jahre',
+      'simple': '{emoji}{name} - {age} Jahre'
+    },
+    terms: {
+      'age': 'Alter',
+      'years': 'Jahre',
+      'year': 'Jahr',
+      'birthday': 'Geburtstag',
+      'happyBirthday': 'Alles Gute zum Geburtstag'
+    }
+  },
+  es: {
+    titleFormats: {
+      'default': '{emoji}Cumpleaños de {name} - {age} años',
+      'birthday': '{emoji}Cumpleaños de {name} - {age} años',
+      'simple': '{emoji}{name} - {age} años'
+    },
+    terms: {
+      'age': 'edad',
+      'years': 'años',
+      'year': 'año',
+      'birthday': 'cumpleaños',
+      'happyBirthday': 'Feliz Cumpleaños'
+    }
+  }
+};
+
+/**
+ * Language configuration for localized event titles and descriptions.
+ * Supports: English (en), Italian (it), French (fr), German (de), Spanish (es)
+ * 
+ * For configuration examples and full documentation, see README.md
+ */
+
+/**
+ * Generate a localized title for a birthday event
+ * @param {string} contactName - The name of the person
+ * @param {number|null} age - The age of the person (null if unknown)
+ * @param {number|null} birthYear - The birth year (null if unknown)  
+ * @param {boolean} showYear - Whether to show birth year instead of age
+ * @param {boolean} isRecurring - Whether this is a recurring event
+ * @returns {string} The formatted title
+ */
+function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurring) {
+  const langConfig = LANGUAGE_CONFIG[CONFIG.language] || LANGUAGE_CONFIG['en'];
+  
+  // Use titleFormat if provided, otherwise fall back to language default
+  const formatTemplate = CONFIG.titleFormat || langConfig.titleFormats['default'];
+  
+  // Build replacement values
+  const emoji = CONFIG.useEmoji ? '🎂 ' : '';
+  let ageOrYear = '';
+  let ageText = '';
+  
+  if (birthYear && CONFIG.showYearOrAge) {
+    if (showYear) {
+      ageOrYear = `*${birthYear}`;
+      ageText = `*${birthYear}`;
+    } else if (age !== null) {
+      const yearWord = age === 1 ? langConfig.terms.year : langConfig.terms.years;
+      ageOrYear = age.toString();
+      ageText = `${age} ${yearWord}`;
+    }
+  }
+  
+  // Replace placeholders in the format template
+  let title = formatTemplate
+    .replace(/{emoji}/g, emoji)
+    .replace(/{name}/g, contactName)
+    .replace(/{ageOrYear}/g, ageOrYear)
+    .replace(/{age}/g, age !== null ? age.toString() : '')
+    .replace(/{ageText}/g, ageText)
+    .replace(/{birthYear}/g, birthYear ? birthYear.toString() : '')
+    .replace(/{years}/g, langConfig.terms.years)
+    .replace(/{year}/g, langConfig.terms.year)
+    .replace(/{birthday}/g, langConfig.terms.birthday);
+  
+  // Clean up empty age/year information - remove parentheses, dashes, etc. around empty values
+  title = title
+    .replace(/\s*\(\s*\)\s*/g, '')        // Remove empty parentheses like " () "
+    .replace(/\s*\(\s*\*\s*\)\s*/g, '')   // Remove empty year parentheses like " (*) "
+    .replace(/\s*-\s*\*?\s*$/g, '')       // Remove trailing " - " or " - *"
+    .replace(/\s+/g, ' ');                // Clean up multiple spaces
+    
+  return title.trim();
+}
+
+/**
+ * Generate a localized description for a birthday event
+ * @param {string} contactName - The name of the person
+ * @returns {string} The formatted description
+ */
+function generateLocalizedDescription(contactName) {
+  const langConfig = LANGUAGE_CONFIG[CONFIG.language] || LANGUAGE_CONFIG['en'];
+  const happyBirthdayText = langConfig.terms.happyBirthday;
+  
+  return `🎂 ${happyBirthdayText} ${contactName}\n\n[${CONFIG.scriptKey}]`;
+}
 
 /**
  * Main function to create/update birthday events.
@@ -131,18 +283,16 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     return;
   }
   
-  // Build expected title
-  let expectedTitle = '';
+  // Build expected title using localized function
   const age = birthdayDate.year ? currentYear - birthdayDate.year : null;
-  if (CONFIG.useEmoji) expectedTitle += '🎂 ';
-  expectedTitle += contactName;
-  if (birthdayDate.year && CONFIG.showYearOrAge) {
-    if (CONFIG.useRecurrence && CONFIG.showAgeOnRecurring) {
-      expectedTitle += ` (${age})`;
-    } else {
-      expectedTitle += CONFIG.useRecurrence ? ` (*${birthdayDate.year})` : ` (${age})`;
-    }
-  }
+  const showYear = CONFIG.useRecurrence && !CONFIG.showAgeOnRecurring;
+  const expectedTitle = generateLocalizedTitle(
+    contactName,
+    age,
+    birthdayDate.year,
+    showYear,
+    CONFIG.useRecurrence
+  );
 
   // FAST existence check
   const key = `${expectedTitle}|${month}|${day}`;
@@ -205,12 +355,15 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     let allYearsExist = true;
     for (let year = startYear; year <= currentYear + CONFIG.futureYears; year++) {
       const yearAge = year - birthdayDate.year;
-      let yearTitle = '';
-      if (CONFIG.useEmoji) yearTitle += '🎂 ';
-      yearTitle += contactName;
-      if (CONFIG.showYearOrAge) {
-        yearTitle += ` (${yearAge})`;
-      }
+      
+      // Generate title for this specific year using localized function
+      const yearTitle = generateLocalizedTitle(
+        contactName,
+        yearAge,
+        birthdayDate.year,
+        false, // Always show age for individual events
+        false  // Individual events are not recurring
+      );
       
       const yearKey = `${yearTitle}|${month}|${day}`;
       const yearEvent = eventIndex.get(yearKey);
@@ -225,8 +378,8 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     }
   }
 
-  // Create event description with script key
-  const eventDescription = `🎂 Happy Birthday ${contactName}\n\n[${CONFIG.scriptKey}]`;
+  // Create event description using localized function
+  const eventDescription = generateLocalizedDescription(contactName);
 
   // Create events - individual yearly events if showing age on recurring, otherwise use recurrence
   if (CONFIG.useRecurrence && CONFIG.showAgeOnRecurring && birthdayDate.year) {
@@ -235,13 +388,14 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       const yearAge = year - birthdayDate.year;
       const yearBirthdayDate = new Date(year, month, day);
       
-      // Build title with age for this specific year
-      let yearTitle = '';
-      if (CONFIG.useEmoji) yearTitle += '🎂 ';
-      yearTitle += contactName;
-      if (CONFIG.showYearOrAge) {
-        yearTitle += ` (${yearAge})`;
-      }
+      // Build title with age for this specific year using localized function
+      const yearTitle = generateLocalizedTitle(
+        contactName,
+        yearAge,
+        birthdayDate.year,
+        false, // Always show age for individual events
+        false  // Individual events are not recurring
+      );
       
       const event = calendar.createAllDayEvent(
         yearTitle,
