@@ -99,6 +99,44 @@ const LANGUAGE_CONFIG = {
   }
 };
 
+
+/**
+ * Main function to create/update birthday events.
+ * Also manages the optional time-based trigger.
+ */
+function loopThroughContacts() {
+  if (CONFIG.useTrigger) {
+    ensureTriggerExists();
+  } else {
+    removeTriggerIfExists();
+  }
+
+  const connections = getAllContacts();
+  const calendar = CalendarApp.getCalendarById(CONFIG.calendarId);
+
+  if (!calendar) {
+    Logger.log("⚠️ Calendar not found.");
+    return;
+  }
+
+  if (CONFIG.cleanupEvents) {
+    cleanupOldBirthdayEvents(calendar, connections);
+  }
+
+  const currentYear = new Date().getFullYear();
+  const startDate = new Date(currentYear - CONFIG.pastYears - 1, 0, 1);
+  const endDate = new Date(currentYear + CONFIG.futureYears + 1, 11, 31);
+  const allEvents = calendar.getEvents(startDate, endDate);
+  const eventIndex  = buildBirthdayIndex(allEvents);
+
+  for (const person of connections) {
+    const birthdayData = person.birthdays?.find(b => b.date);
+    if (birthdayData) {
+      updateOrCreateBirthDayEvent(person, birthdayData, calendar, allEvents, eventIndex);
+    }
+  }
+}
+
 /**
  * Language configuration for localized event titles and descriptions.
  * Supports: English (en), Italian (it), French (fr), German (de), Spanish (es)
@@ -142,7 +180,7 @@ function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurri
     .replace(/{emoji}/g, emoji)
     .replace(/{name}/g, contactName)
     .replace(/{ageOrYear}/g, ageOrYear)
-    .replace(/{age}/g, age !== null ? age.toString() : '')
+    .replace(/{age}/g, '${age}')
     .replace(/{ageText}/g, ageText)
     .replace(/{birthYear}/g, birthYear ? birthYear.toString() : '')
     .replace(/{years}/g, langConfig.terms.years)
@@ -169,43 +207,6 @@ function generateLocalizedDescription(contactName) {
   const happyBirthdayText = langConfig.terms.happyBirthday;
   
   return `🎂 ${happyBirthdayText} ${contactName}\n\n[${CONFIG.scriptKey}]`;
-}
-
-/**
- * Main function to create/update birthday events.
- * Also manages the optional time-based trigger.
- */
-function loopThroughContacts() {
-  if (CONFIG.useTrigger) {
-    ensureTriggerExists();
-  } else {
-    removeTriggerIfExists();
-  }
-
-  const connections = getAllContacts();
-  const calendar = CalendarApp.getCalendarById(CONFIG.calendarId);
-
-  if (!calendar) {
-    Logger.log("⚠️ Calendar not found.");
-    return;
-  }
-
-  if (CONFIG.cleanupEvents) {
-    cleanupOldBirthdayEvents(calendar, connections);
-  }
-
-  const currentYear = new Date().getFullYear();
-  const startDate = new Date(currentYear - CONFIG.pastYears - 1, 0, 1);
-  const endDate = new Date(currentYear + CONFIG.futureYears + 1, 11, 31);
-  const allEvents = calendar.getEvents(startDate, endDate);
-  const eventIndex  = buildBirthdayIndex(allEvents);
-
-  for (const person of connections) {
-    const birthdayData = person.birthdays?.find(b => b.date);
-    if (birthdayData) {
-      updateOrCreateBirthDayEvent(person, birthdayData, calendar, allEvents, eventIndex);
-    }
-  }
 }
 
 /**
