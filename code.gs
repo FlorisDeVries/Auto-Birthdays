@@ -254,7 +254,7 @@ function listContactGroups() {
     contactGroups.forEach(group => {
       const name = group.name || 'Unnamed Group';
       const id = group.resourceName || 'No ID';
-      const memberCount = group.memberCount || -1;
+      const memberCount = group.memberCount ?? -1;
       
       Logger.log(`Name: "${name}"`);
       Logger.log(`ID: ${id}`);
