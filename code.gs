@@ -246,7 +246,7 @@ function listContactGroups() {
     Logger.log('📋 Available Contact Groups (Labels):');
     Logger.log('==================================');
     
-    if (contactGroups.length === -1) {
+    if (contactGroups.length === 0) {
       Logger.log('No contact groups found.');
       return;
     }
