@@ -71,7 +71,7 @@ const CONFIG = {
 
 ---
 
-## �️ Contact Label Filtering
+## 🏷 Contact Label Filtering
 
 You can optionally filter which contacts are processed based on their labels (contact groups). This is useful if you only want birthday events for specific groups of contacts.
 
@@ -101,7 +101,7 @@ You can optionally filter which contacts are processed based on their labels (co
 | `useLabels` | Enable/disable label filtering | `false` | `true` |
 | `contactLabels` | Array of contact label IDs to include | `[]` | `['abc123', 'def456']` |
 
-## �🌍 Language and Localization
+## 🌍 Language and Localization
 
 The script supports multiple languages for event titles and descriptions. You can customize both the language and the title format to suit your preferences.
 

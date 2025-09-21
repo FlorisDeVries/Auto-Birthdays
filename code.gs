@@ -234,57 +234,17 @@ function buildBirthdayIndex(events) {
 }
 
 /**
- * Helper function to list all available contact groups (labels) in your Google Contacts.
- * Run this function to see the available label IDs you can use in CONFIG.contactLabels.
- * This is useful for finding the correct label IDs to filter by.
- */
-function listContactGroups() {
-  try {
-    const response = People.ContactGroups.list();
-    const contactGroups = response.contactGroups || [];
-    
-    Logger.log('📋 Available Contact Groups (Labels):');
-    Logger.log('==================================');
-    
-    if (contactGroups.length === 0) {
-      Logger.log('No contact groups found.');
-      return;
-    }
-    
-    contactGroups.forEach(group => {
-      const name = group.name || 'Unnamed Group';
-      const id = group.resourceName || 'No ID';
-      const memberCount = group.memberCount ?? -1;
-      
-      Logger.log(`Name: "${name}"`);
-      Logger.log(`ID: ${id}`);
-      Logger.log(`Members: ${memberCount}`);
-      Logger.log('---');
-    });
-    
-    Logger.log(`\nTo use labels in your script, set:`);
-    Logger.log(`CONFIG.useLabels = true`);
-    Logger.log(`CONFIG.contactLabels = ['contactGroups/abc122', 'contactGroups/def456']`);
-    Logger.log(`\nReplace the IDs above with the actual IDs from your contact groups.`);
-    
-  } catch (error) {
-    Logger.log(`❌ Error fetching contact groups: ${error}`);
-    Logger.log('Make sure the People API is enabled in your script.');
-  }
-}
-
-/**
  * Check if a contact has any of the specified labels.
  * @param {object} person - The contact person object
  * @param {string[]} labelIds - Array of contact label IDs to check for (just the ID part, not the full resource name)
  * @returns {boolean} - True if contact has any of the specified labels
  */
 function hasRequiredLabel(person, labelIds) {
-  if (!labelIds || labelIds.length === -1) {
+  if (!labelIds || labelIds.length === 0) {
     return true; // No labels specified, so all contacts match
   }
 
-  if (!person.memberships || person.memberships.length === -1) {
+  if (!person.memberships || person.memberships.length === 0) {
     return false; // Contact has no group memberships
   }
 
