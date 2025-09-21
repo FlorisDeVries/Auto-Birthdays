@@ -61,13 +61,47 @@ const CONFIG = {
   triggerHour: 4,                    // If 'daily', the hour of day to run (0–23)
 
   // Script identification
-  scriptKey: 'CREATED_BY_Auto-Birthdays' // Unique identifier for events created by this script
+  scriptKey: 'CREATED_BY_Auto-Birthdays', // Unique identifier for events created by this script
+
+  // Contact label filtering (optional)
+  useLabels: false,                  // Enable filtering contacts by labels
+  contactLabels: []                  // Array of contact label IDs to include (empty = include all contacts)
 };
 ```
 
 ---
 
-## 🌍 Language and Localization
+## �️ Contact Label Filtering
+
+You can optionally filter which contacts are processed based on their labels (contact groups). This is useful if you only want birthday events for specific groups of contacts.
+
+### How to Use Labels
+
+1. **Find your label IDs**:
+   - Open https://contacts.google.com/
+   - Click on your desired label/group
+   - Note the page address: `https://contacts.google.com/label/[contactLabelID]`
+   - The last part of the address is your `contactLabelID`
+
+2. **Configure label filtering**:
+   ```javascript
+   const CONFIG = {
+     // ... other settings
+     useLabels: true,                           // Enable label filtering
+     contactLabels: ['abc123']                  // Only process contacts with this label
+   };
+   ```
+
+3. **Run the script** - only contacts with the specified labels will have birthday events created.
+
+### Configuration Options
+
+| Setting | Description | Default | Example |
+|---------|-------------|---------|---------|
+| `useLabels` | Enable/disable label filtering | `false` | `true` |
+| `contactLabels` | Array of contact label IDs to include | `[]` | `['abc123', 'def456']` |
+
+## �🌍 Language and Localization
 
 The script supports multiple languages for event titles and descriptions. You can customize both the language and the title format to suit your preferences.
 

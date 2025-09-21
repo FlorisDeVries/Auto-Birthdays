@@ -30,7 +30,11 @@ const CONFIG = {
   triggerHour: 4,                    // If 'daily', the hour of day to run (0–23)
 
   // Script identification
-  scriptKey: 'CREATED_BY_Auto-Birthdays' // Unique identifier for events created by this script; customize if desired
+  scriptKey: 'CREATED_BY_Auto-Birthdays', // Unique identifier for events created by this script; customize if desired
+
+  // Contact label filtering (optional)
+  useLabels: false,                  // Enable filtering contacts by labels
+  contactLabels: []                  // Array of contact label IDs to include (empty = include all contacts)
 };
 
 /**
@@ -130,6 +134,11 @@ function loopThroughContacts() {
   const eventIndex  = buildBirthdayIndex(allEvents);
 
   for (const person of connections) {
+    // Check if label filtering is enabled and if this contact has the required labels
+    if (CONFIG.useLabels && !hasRequiredLabel(person, CONFIG.contactLabels)) {
+      continue; // Skip this contact if it doesn't have the required labels
+    }
+
     const birthdayData = person.birthdays?.find(b => b.date);
     if (birthdayData) {
       updateOrCreateBirthDayEvent(person, birthdayData, calendar, allEvents, eventIndex);
@@ -225,6 +234,79 @@ function buildBirthdayIndex(events) {
 }
 
 /**
+ * Helper function to list all available contact groups (labels) in your Google Contacts.
+ * Run this function to see the available label IDs you can use in CONFIG.contactLabels.
+ * This is useful for finding the correct label IDs to filter by.
+ */
+function listContactGroups() {
+  try {
+    const response = People.ContactGroups.list();
+    const contactGroups = response.contactGroups || [];
+    
+    Logger.log('📋 Available Contact Groups (Labels):');
+    Logger.log('==================================');
+    
+    if (contactGroups.length === -1) {
+      Logger.log('No contact groups found.');
+      return;
+    }
+    
+    contactGroups.forEach(group => {
+      const name = group.name || 'Unnamed Group';
+      const id = group.resourceName || 'No ID';
+      const memberCount = group.memberCount || -1;
+      
+      Logger.log(`Name: "${name}"`);
+      Logger.log(`ID: ${id}`);
+      Logger.log(`Members: ${memberCount}`);
+      Logger.log('---');
+    });
+    
+    Logger.log(`\nTo use labels in your script, set:`);
+    Logger.log(`CONFIG.useLabels = true`);
+    Logger.log(`CONFIG.contactLabels = ['contactGroups/abc122', 'contactGroups/def456']`);
+    Logger.log(`\nReplace the IDs above with the actual IDs from your contact groups.`);
+    
+  } catch (error) {
+    Logger.log(`❌ Error fetching contact groups: ${error}`);
+    Logger.log('Make sure the People API is enabled in your script.');
+  }
+}
+
+/**
+ * Check if a contact has any of the specified labels.
+ * @param {object} person - The contact person object
+ * @param {string[]} labelIds - Array of contact label IDs to check for (just the ID part, not the full resource name)
+ * @returns {boolean} - True if contact has any of the specified labels
+ */
+function hasRequiredLabel(person, labelIds) {
+  if (!labelIds || labelIds.length === -1) {
+    return true; // No labels specified, so all contacts match
+  }
+
+  if (!person.memberships || person.memberships.length === -1) {
+    return false; // Contact has no group memberships
+  }
+
+  // Check if any membership matches any of the specified label IDs
+  for (const membership of person.memberships) {
+    if (membership.contactGroupMembership && membership.contactGroupMembership.contactGroupId) {
+      const contactGroupId = membership.contactGroupMembership.contactGroupId;
+      
+      // Check if this contactGroupId contains any of our target labels
+      // contactGroupId format is typically "contactGroups/abc122"
+      for (const labelId of labelIds) {
+        if (contactGroupId.includes(labelId)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Get all Google Contacts using pagination.
  */
 function getAllContacts() {
@@ -233,7 +315,7 @@ function getAllContacts() {
 
   do {
     const reqOpts = {
-      personFields: 'names,birthdays',
+      personFields: 'names,birthdays,memberships',
       sortOrder: 'LAST_NAME_ASCENDING',
       pageSize: 100,
       pageToken: nextPageToken
@@ -488,6 +570,13 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
 
   // Collect valid contacts with birthday info
   const contactBirthdays = allContacts
+    .filter(person => {
+      // Apply label filtering if enabled
+      if (CONFIG.useLabels && !hasRequiredLabel(person, CONFIG.contactLabels)) {
+        return false;
+      }
+      return true;
+    })
     .map(person => {
       if (!person.names || !person.birthdays) return null;
       const name = getContactName(person);
