@@ -291,7 +291,7 @@ function hasMatchingBirthMonth(person, filterMonths) {
     return false; // No valid birthday data
   }
 
-  const birthMonth = parseInt(birthdayData.date.month, 10);
+  const birthMonth = birthdayData.date.month;
   return filterMonths.includes(birthMonth);
 }
 
