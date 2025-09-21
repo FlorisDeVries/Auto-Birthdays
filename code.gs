@@ -34,7 +34,7 @@ const CONFIG = {
 
   // Contact label filtering (optional)
   useLabels: false,                  // Enable filtering contacts by labels
-  contactLabels: []                  // Array of contact label IDs to include (empty = include all contacts)
+  contactLabels: []                  // Array of contact label IDs to include (e.g. ['abc123'])
 };
 
 /**
