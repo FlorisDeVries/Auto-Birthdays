@@ -39,6 +39,10 @@ const CONFIG = {
   useEmoji: true,                    // Add 🎂 emoji to event titles
   showYearOrAge: true,               // Recurrence on: shows (*YYYY), off: shows (age)
   showAgeOnRecurring: false,         // If true, shows (age) on recurring events instead of (*YYYY)
+  
+  // Language and localization
+  language: 'en',                    // Language code: 'en' (English), 'it' (Italian), etc.
+  titleFormat: '{emoji}{name} ({ageOrYear})', // Title format template (see below for placeholders)
 
   // Recurrence
   useRecurrence: true,               // Create recurring yearly events
@@ -63,9 +67,91 @@ const CONFIG = {
 
 ---
 
+## 🌍 Language and Localization
+
+The script supports multiple languages for event titles and descriptions. You can customize both the language and the title format to suit your preferences.
+
+### Available Languages
+
+Currently supported languages:
+- **English** (`'en'`) - Default
+- **Italian** (`'it'`)
+- **French** (`'fr'`)
+- **German** (`'de'`)
+- **Spanish** (`'es'`)
+
+### Title Format Templates
+
+You can customize the event title format using these placeholders:
+
+| Placeholder | Description | Example |
+|-------------|-------------|---------|
+| `{emoji}` | Birthday emoji (🎂 ) if enabled | 🎂 |
+| `{name}` | Person's name | John Doe |
+| `{age}` | Person's age | 36 |
+| `{ageOrYear}` | Age or birth year (*YYYY) based on settings | 36 or *1988 |
+| `{ageText}` | Age with language-specific year/years word | 36 years |
+| `{birthYear}` | Birth year | 1988 |
+| `{birthday}` | Localized word for "birthday" | birthday / compleanno |
+| `{years}` | Localized word for "years" | years / anni |
+| `{year}` | Localized word for "year" (singular) | year / anno |
+
+### Language Examples
+
+**English Configuration:**
+```javascript
+language: 'en',
+titleFormat: '{emoji}{name} ({ageOrYear})'        // 🎂 John Doe (36)
+// or
+titleFormat: '{emoji}{name}\'s birthday - {age} years'  // 🎂 John Doe's birthday - 36 years
+```
+
+**Italian Configuration:**
+```javascript
+language: 'it',
+titleFormat: '{emoji}Compleanno di {name} - {age} anni'       // 🎂 Compleanno di John Doe - 36 anni
+// or
+titleFormat: '{emoji}{name} - {ageText}'                // 🎂 John Doe - 36 anni
+```
+
+**French Configuration:**
+```javascript
+language: 'fr',
+titleFormat: '{emoji}Anniversaire de {name} - {age} ans'      // 🎂 Anniversaire de John Doe - 36 ans
+// or
+titleFormat: '{emoji}{name} - {ageText}'                // 🎂 John Doe - 36 ans
+```
+
+**German Configuration:**
+```javascript
+language: 'de',
+titleFormat: '{emoji}Geburtstag von {name} - {age} Jahre'     // 🎂 Geburtstag von John Doe - 36 Jahre
+// or
+titleFormat: '{emoji}{name} - {ageText}'                // 🎂 John Doe - 36 Jahre
+```
+
+**Spanish Configuration:**
+```javascript
+language: 'es',
+titleFormat: '{emoji}Cumpleaños de {name} - {age} años'       // 🎂 Cumpleaños de John Doe - 36 años
+// or
+titleFormat: '{emoji}{name} - {ageText}'                // 🎂 John Doe - 36 años
+```
+
+### Custom Title Formats
+
+You have two ways to customize titles:
+
+1. **Use built-in language formats** - Set `language` to use the default format for that language
+2. **Custom format** - Set your own template in `titleFormat` with any placeholders you want
+
+---
+
 ## 🖋️ Event Title Formats
 
-Depending on your configuration, birthday events will appear with different formats:
+Depending on your configuration, birthday events will appear with different formats. Here are examples for different languages:
+
+### English Examples (`language: 'en'`)
 
 | `useEmoji` | `useRecurrence` | `showYearOrAge` | `showAgeOnRecurring` | `Event Title Example`     |
 |------------|-----------------|-----------------|---------------------|---------------------------|
@@ -75,6 +161,22 @@ Depending on your configuration, birthday events will appear with different form
 | false      | true            | false           | N/A                 | John Doe                  |
 | false      | false           | true            | N/A                 | John Doe (36)             |
 | false      | false           | false           | N/A                 | John Doe                  |
+
+### Custom Format Examples
+
+```javascript
+// English birthday style
+titleFormat: '{emoji}{name}\'s birthday - {age} years'
+// Result: 🎂 John Doe's birthday - 36 years
+
+// Simple format
+titleFormat: '{emoji}{name} - {age}'  
+// Result: 🎂 John Doe - 36
+
+// Italian with age text
+titleFormat: '{emoji}{name} compie {ageText}'
+// Result: 🎂 John Doe compie 36 anni
+```
 
 **Notes:**
 - `showAgeOnRecurring` only applies when `useRecurrence=true` and `showYearOrAge=true`
