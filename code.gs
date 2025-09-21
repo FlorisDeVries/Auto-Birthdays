@@ -34,7 +34,11 @@ const CONFIG = {
 
   // Contact label filtering (optional)
   useLabels: false,                  // Enable filtering contacts by labels
-  contactLabels: []                  // Array of contact label IDs to include (e.g. ['abc123'])
+  contactLabels: [],                 // Array of contact label IDs to include (e.g. ['abc123'])
+
+  // Month filtering (optional)
+  useMonthFilter: false,             // Enable filtering contacts by birth month
+  filterMonths: []                   // Array of months to include (1-12), e.g. [1, 2, 4] for Jan, Feb, Apr
 };
 
 /**
@@ -137,6 +141,11 @@ function loopThroughContacts() {
     // Check if label filtering is enabled and if this contact has the required labels
     if (CONFIG.useLabels && !hasRequiredLabel(person, CONFIG.contactLabels)) {
       continue; // Skip this contact if it doesn't have the required labels
+    }
+
+    // Check if month filtering is enabled and if this contact's birthday month matches
+    if (CONFIG.useMonthFilter && !hasMatchingBirthMonth(person, CONFIG.filterMonths)) {
+      continue; // Skip this contact if its birthday month doesn't match the filter
     }
 
     const birthdayData = person.birthdays?.find(b => b.date);
@@ -264,6 +273,26 @@ function hasRequiredLabel(person, labelIds) {
   }
 
   return false;
+}
+
+/**
+ * Check if a contact's birthday month matches any of the specified filter months.
+ * @param {object} person - The contact person object
+ * @param {number[]} filterMonths - Array of months to include (1-12)
+ * @returns {boolean} - True if contact's birthday month matches any filter month
+ */
+function hasMatchingBirthMonth(person, filterMonths) {
+  if (!filterMonths || filterMonths.length === 0) {
+    return true; // No month filter specified, so all contacts match
+  }
+
+  const birthdayData = person.birthdays?.find(b => b.date);
+  if (!birthdayData || !birthdayData.date || typeof birthdayData.date.month !== 'number') {
+    return false; // No valid birthday data
+  }
+
+  const birthMonth = parseInt(birthdayData.date.month, 10);
+  return filterMonths.includes(birthMonth);
 }
 
 /**

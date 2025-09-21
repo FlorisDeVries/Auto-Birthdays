@@ -65,7 +65,11 @@ const CONFIG = {
 
   // Contact label filtering (optional)
   useLabels: false,                  // Enable filtering contacts by labels
-  contactLabels: []                  // Array of contact label IDs to include (e.g. ['abc123'])
+  contactLabels: [],                 // Array of contact label IDs to include (e.g. ['abc123'])
+
+  // Month filtering (optional)
+  useMonthFilter: false,             // Enable filtering contacts by birth month
+  filterMonths: []                   // Array of months to include (1-12), e.g. [1, 2, 4] for Jan, Feb, Apr
 };
 ```
 
@@ -100,6 +104,30 @@ You can optionally filter which contacts are processed based on their labels (co
 |---------|-------------|---------|---------|
 | `useLabels` | Enable/disable label filtering | `false` | `true` |
 | `contactLabels` | Array of contact label IDs to include | `[]` | `['abc123', 'def456']` |
+
+## 📅 Month Filtering
+
+To improve performance and reduce the risk of timeouts, this filter can be used to process contacts in smaller groups. You can optionally filter which contacts are processed based on the month of their birthday.
+
+### How to Use Month Filtering
+
+1. **Configure month filtering**:
+   ```javascript
+   const CONFIG = {
+     // ... other settings
+     useMonthFilter: true,             // Enable month filtering
+     filterMonths: [1, 2, 3]          // Only process contacts with birthdays in Jan, Feb, Mar
+   };
+   ```
+
+2. **Run the script** - only contacts with birthdays in the specified months will have birthday events created.
+
+### Configuration Options
+
+| Setting | Description | Default | Example |
+|---------|-------------|---------|---------|
+| `useMonthFilter` | Enable/disable month filtering | `false` | `true` |
+| `filterMonths` | Array of months to include (1-12) | `[]` | `[1, 2, 4]` for January, February, April |
 
 ## 🌍 Language and Localization
 
