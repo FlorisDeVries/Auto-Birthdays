@@ -722,6 +722,9 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
   const deletedSeriesIds = new Set();
   const eventsToDelete = [];
 
+  // Phase 1: Scan events and mark candidates for deletion
+  Logger.log(`🔍 Scanning ${allEvents.length} events to identify birthday events for cleanup...`);
+
   for (const event of allEvents) {
     const title = event.getTitle();
     const start = event.getStartTime();
@@ -754,6 +757,7 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
           }
           deletedSeriesIds.add(seriesId);
           eventsToDelete.push({ event: series, isSeries: true });
+          Logger.log(`📋 Marked recurring series for deletion: ${title}`);
           break;
         } catch (e) {
           retryAttempts++;
@@ -765,26 +769,29 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
             const seriesId = series.getId();
             if (deletedSeriesIds.has(seriesId)) {
               retrySuccesses++;
-              Logger.log(`✅ Second attempt succeeded for: ${title}`);
+              Logger.log(`✅ Retry successful - series marked for deletion: ${title}`);
               break;
             }
             deletedSeriesIds.add(seriesId);
             eventsToDelete.push({ event: series, isSeries: true });
             retrySuccesses++;
-            Logger.log(`✅ Second attempt succeeded for: ${title}`);
+            Logger.log(`✅ Retry successful - marked recurring series for deletion: ${title}`);
             break;
           } catch (e) {
-            Logger.log(`⚠️ Second attempt failed — skipping entry ${e}`);
+            Logger.log(`⚠️ Second attempt failed — skipping entry: ${e}`);
           }
         }
       } else {
         eventsToDelete.push({ event, isSeries: false });
+        Logger.log(`📋 Marked single event for deletion: ${title} on ${event.getStartTime().toDateString()}`);
         break;
       }
     }
   }
 
-  // Now delete all marked events
+  // Phase 2: Execute deletions for all marked events
+  Logger.log(`🗑️ Starting deletion of ${eventsToDelete.length} marked events (${deletedSeriesIds.size} recurring series, ${eventsToDelete.length - deletedSeriesIds.size} single events)`);
+  
   for (const { event, isSeries } of eventsToDelete) {
     try {
       if (isSeries) {
