@@ -50,7 +50,9 @@ const CONFIG = {
   pastYears: 2,                      // Recurring events start this many years in the past
 
   // Reminder settings
-  reminderMinutesBefore: 1440,       // Popup reminder (in minutes); 1440 = 1 day before
+  useReminders: true,                // Enable/disable popup reminders for birthday events
+  reminderMinutesBefore: 1440,       // Popup reminder time (in minutes) - only used if useReminders is true
+                                     // Common values: 0 = at event time, 60 = 1 hour before, 1440 = 1 day before, 10080 = 1 week before
 
   // Cleanup
   cleanupEvents: false,               // ⚠️⚠️⚠️ Deletes all matching birthday events between ±100 years
@@ -108,6 +110,9 @@ You can optionally filter which contacts are processed based on their labels (co
 ## 📅 Month Filtering
 
 To improve performance and reduce the risk of timeouts, this filter can be used to process contacts in smaller groups. You can optionally filter which contacts are processed based on the month of their birthday.
+
+> **⏱️ EXECUTION TIME LIMIT**  
+> Google Apps Script has a **6-minute maximum execution time**. If you have many contacts, the script may timeout before completing. Use month filtering to process contacts in smaller batches, or simply re-run the script to continue where it left off.
 
 ### How to Use Month Filtering
 
@@ -320,6 +325,7 @@ If you encounter issues:
 - Run the script **manually the first time** to authorize permissions
 - Ensure you've **enabled the People API** under **Services**
 - Make sure you've granted **Calendar and Contacts permissions**
+- **Script timeout**: If execution stops due to the 6-minute limit, simply re-run the script to continue processing
 - Restore missing items via Calendar → Trash/Bin.
 
 ---
