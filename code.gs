@@ -1,5 +1,6 @@
 /******************************
  * CONFIGURATION
+ * Version: 1.0
  ******************************/
 const CONFIG = {
   calendarId: 'primary',            // 'primary' or your calendar ID
@@ -19,7 +20,9 @@ const CONFIG = {
   pastYears: 1,                      // Recurring events start this many years in the past
 
   // Reminder settings
-  reminderMinutesBefore: 1440,       // Popup reminder (in minutes); 1440 = 1 day before
+  useReminders: true,                // Enable/disable reminders for birthday events
+  reminderMinutesBefore: 1440,       // Popup reminder time (in minutes) - only used if useReminders is true
+                                     // Common values: 0 = at event time, 60 = 1 hour before, 1440 = 1 day before, 10080 = 1 week before
 
   // Cleanup
   cleanupEvents: false,              // ⚠️⚠️⚠️ Deletes all matching birthday events between ±100 years
@@ -120,6 +123,12 @@ function loopThroughContacts() {
   }
 
   const connections = getAllContacts();
+  // Validate reminder configuration
+  if (CONFIG.useReminders && (typeof CONFIG.reminderMinutesBefore !== 'number' || CONFIG.reminderMinutesBefore < 0)) {
+    Logger.log("⚠️ Invalid reminder configuration: reminderMinutesBefore must be a non-negative number when useReminders is true.");
+    return;
+  }
+
   const calendar = CalendarApp.getCalendarById(CONFIG.calendarId);
 
   if (!calendar) {
@@ -128,8 +137,12 @@ function loopThroughContacts() {
   }
 
   if (CONFIG.cleanupEvents) {
+    Logger.log("🧹 Starting cleanup of old birthday events...");
     cleanupOldBirthdayEvents(calendar, connections);
+    Logger.log(""); // Empty line for separation
   }
+
+  Logger.log("📊 Starting birthday event processing...");
 
   const currentYear = new Date().getFullYear();
   const startDate = new Date(currentYear - CONFIG.pastYears - 1, 0, 1);
@@ -137,22 +150,96 @@ function loopThroughContacts() {
   const allEvents = calendar.getEvents(startDate, endDate);
   const eventIndex  = buildBirthdayIndex(allEvents);
 
+  // Initialize counters for processing report
+  let totalContacts = connections.length;
+  let contactsWithBirthdays = 0;
+  let processedContacts = 0;
+  let eventsCreated = 0;
+  let eventsUpdated = 0;
+  let skippedByLabelFilter = 0;
+  let skippedByMonthFilter = 0;
+  let skippedInvalidBirthdays = 0;
+
   for (const person of connections) {
     // Check if label filtering is enabled and if this contact has the required labels
     if (CONFIG.useLabels && !hasRequiredLabel(person, CONFIG.contactLabels)) {
+      skippedByLabelFilter++;
       continue; // Skip this contact if it doesn't have the required labels
     }
 
     // Check if month filtering is enabled and if this contact's birthday month matches
     if (CONFIG.useMonthFilter && !hasMatchingBirthMonth(person, CONFIG.filterMonths)) {
+      skippedByMonthFilter++;
       continue; // Skip this contact if its birthday month doesn't match the filter
     }
 
     const birthdayData = person.birthdays?.find(b => b.date);
     if (birthdayData) {
-      updateOrCreateBirthDayEvent(person, birthdayData, calendar, allEvents, eventIndex);
+      contactsWithBirthdays++;
+      try {
+        const result = updateOrCreateBirthDayEvent(person, birthdayData, calendar, allEvents, eventIndex);
+        if (result === 'created') {
+          processedContacts++;
+          eventsCreated++;
+        } else if (result === 'updated') {
+          processedContacts++;
+          eventsUpdated++;
+        } else if (result === 'skipped_existing') {
+          processedContacts++;
+          // Event already exists and is correct - no action needed
+        } else if (result === 'skipped_invalid') {
+          skippedInvalidBirthdays++;
+        }
+      } catch (error) {
+        const contactName = getContactName(person);
+        Logger.log(`❌ Error processing ${contactName}: ${error}`);
+        skippedInvalidBirthdays++;
+      }
     }
   }
+
+  // Log processing summary report
+  Logger.log("📊 PROCESSING SUMMARY REPORT:");
+  Logger.log(`📞 Total contacts retrieved: ${totalContacts}`);
+  Logger.log(`🎂 Contacts with birthday data: ${contactsWithBirthdays}`);
+  Logger.log(`✅ Successfully processed contacts: ${processedContacts}`);
+  Logger.log(`🆕 Events created: ${eventsCreated}`);
+  Logger.log(`🔄 Events updated: ${eventsUpdated}`);
+  
+  const eventsAlreadyCorrect = processedContacts - eventsCreated - eventsUpdated;
+  if (eventsAlreadyCorrect > 0) {
+    Logger.log(`✓ Events already up-to-date: ${eventsAlreadyCorrect}`);
+  }
+  if (CONFIG.useLabels) {
+    Logger.log(`🏷️ Contacts skipped by label filter: ${skippedByLabelFilter}`);
+  }
+  
+  if (CONFIG.useMonthFilter) {
+    Logger.log(`📅 Contacts skipped by month filter: ${skippedByMonthFilter}`);
+  }
+  
+  if (skippedInvalidBirthdays > 0) {
+    Logger.log(`⚠️ Contacts with invalid birthday data: ${skippedInvalidBirthdays}`);
+  }
+  
+  const contactsWithoutBirthdays = totalContacts - contactsWithBirthdays - skippedByLabelFilter - skippedByMonthFilter;
+  if (contactsWithoutBirthdays > 0) {
+    Logger.log(`📝 Contacts without birthday data: ${contactsWithoutBirthdays}`);
+  }
+  
+  // Show reminder configuration info
+  if (CONFIG.useReminders) {
+    const reminderText = CONFIG.reminderMinutesBefore === 0 ? "at event time" :
+                        CONFIG.reminderMinutesBefore === 60 ? "1 hour before" :
+                        CONFIG.reminderMinutesBefore === 1440 ? "1 day before" :
+                        CONFIG.reminderMinutesBefore === 10080 ? "1 week before" :
+                        `${CONFIG.reminderMinutesBefore} minutes before`;
+    Logger.log(`⏰ Reminders enabled: ${reminderText}`);
+  } else {
+    Logger.log(`⏰ Reminders disabled`);
+  }
+  
+  Logger.log("🎉 Processing completed successfully!");
 }
 
 /**
@@ -224,7 +311,7 @@ function generateLocalizedDescription(contactName) {
   const langConfig = LANGUAGE_CONFIG[CONFIG.language] || LANGUAGE_CONFIG['en'];
   const happyBirthdayText = langConfig.terms.happyBirthday;
   
-  return `🎂 ${happyBirthdayText} ${contactName}\n\n[${CONFIG.scriptKey}]`;
+  return `🎂 ${happyBirthdayText} ${contactName}!\n\n[${CONFIG.scriptKey}]`;
 }
 
 /**
@@ -320,6 +407,7 @@ function getAllContacts() {
 
 /**
  * Create or update a calendar event for a contact's birthday.
+ * @returns {string} - Operation result: 'created', 'updated', 'skipped_existing', or 'skipped_invalid'
  */
 function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, eventIndex) {
   const contactName = getContactName(person);
@@ -328,7 +416,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
   const birthdayDate = birthdayRaw.date;
   if (!birthdayDate || typeof birthdayDate.day !== 'number' || typeof birthdayDate.month !== 'number') {
     Logger.log(`⚠️ Skipping ${contactName} due to invalid birthdayDate: ${JSON.stringify(birthdayRaw)}`);
-    return;
+    return 'skipped_invalid';
   }
 
   const currentYear = new Date().getFullYear();
@@ -342,7 +430,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
 
   if (isNaN(birthdayStartDate.getTime()) || isNaN(birthdayDateThisYear.getTime())) {
     Logger.log(`⚠️ Invalid date for ${contactName}: ${birthdayDate.month}-${birthdayDate.day}`);
-    return;
+    return 'skipped_invalid';
   }
   
   // Build expected title using localized function
@@ -356,6 +444,9 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     CONFIG.useRecurrence
   );
 
+  // Generate expected description using localized function
+  const expectedDescription = generateLocalizedDescription(contactName);
+
   // FAST existence check
   const key = `${expectedTitle}|${month}|${day}`;
   const existingQuick = eventIndex.get(key);
@@ -366,26 +457,38 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
   if (!usingIndividualEvents && existingQuick &&
       existingQuick.isAllDayEvent() &&
       isEventCreatedByScript(existingQuick) &&
-      (CONFIG.useRecurrence === (existingQuick.isRecurringEvent && existingQuick.isRecurringEvent()))) {
-    return; // nothing to do
+      (CONFIG.useRecurrence === (existingQuick.isRecurringEvent && existingQuick.isRecurringEvent())) &&
+      (existingQuick.getDescription() || '') === expectedDescription &&
+      hasCorrectReminders(existingQuick)) {
+    return 'skipped_existing'; // Event already exists and is correct
   }
 
   // Find and update related events
   const relatedEvents = findBirthdayEvents(allEvents, contactName, month, day);
   const deletedSeriesIds = new Set();
   let correctEventExists = false;
+  let eventsWereDeleted = false;
 
   for (const event of relatedEvents) {
     const title = event.getTitle();
+    let description;
+    try {
+      description = event.getDescription() || '';
+    } catch (e) {
+      description = '';
+    }
     const isTitleOutdated = title !== expectedTitle;
+    const isDescriptionOutdated = description !== expectedDescription;
     const isNotAllDay = !event.isAllDayEvent();
     const isRecurrenceMismatch = CONFIG.useRecurrence !== (event.isRecurringEvent && event.isRecurringEvent());
     const isNotFromScript = !isEventCreatedByScript(event);
+    const hasIncorrectReminders = !hasCorrectReminders(event);
 
     // When using individual events for age display, we need to delete any existing recurring events
     const needsConversionToIndividual = usingIndividualEvents && event.isRecurringEvent && event.isRecurringEvent();
 
-    if (isTitleOutdated || isNotAllDay || isRecurrenceMismatch || isNotFromScript || needsConversionToIndividual) {
+    if (isTitleOutdated || isDescriptionOutdated || isNotAllDay || isRecurrenceMismatch || isNotFromScript || hasIncorrectReminders || needsConversionToIndividual) {
+      eventsWereDeleted = true;
       try {
         if (event.isRecurringEvent && event.isRecurringEvent()) {
           const series = event.getEventSeries();
@@ -409,7 +512,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
   }
 
   if (correctEventExists) {
-    return;
+    return 'skipped_existing'; // Correct event already exists
   }
 
   // For individual age events, check if all years already exist
@@ -429,19 +532,16 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       
       const yearKey = `${yearTitle}|${month}|${day}`;
       const yearEvent = eventIndex.get(yearKey);
-      if (!yearEvent || !isEventCreatedByScript(yearEvent)) {
+      if (!yearEvent || !isEventCreatedByScript(yearEvent) || (yearEvent.getDescription() || '') !== expectedDescription || !hasCorrectReminders(yearEvent)) {
         allYearsExist = false;
         break;
       }
     }
     
     if (allYearsExist) {
-      return; // All individual events already exist
+      return 'skipped_existing'; // All individual events already exist
     }
   }
-
-  // Create event description using localized function
-  const eventDescription = generateLocalizedDescription(contactName);
 
   // Create events - individual yearly events if showing age on recurring, otherwise use recurrence
   if (CONFIG.useRecurrence && CONFIG.showAgeOnRecurring && birthdayDate.year) {
@@ -462,9 +562,11 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       const event = calendar.createAllDayEvent(
         yearTitle,
         yearBirthdayDate,
-        { description: eventDescription }
+        { description: expectedDescription }
       );
-      event.addPopupReminder(CONFIG.reminderMinutesBefore);
+      if (CONFIG.useReminders) {
+        event.addPopupReminder(CONFIG.reminderMinutesBefore);
+      }
       Logger.log(`🎁 Created individual event: ${yearTitle} [${yearBirthdayDate.toDateString()}]`);
     }
   } else if (CONFIG.useRecurrence) {
@@ -477,20 +579,26 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       expectedTitle,
       birthdayStartDate,
       recurrence,
-      { description: eventDescription }
+      { description: expectedDescription }
     );
-    eventSeries.addPopupReminder(CONFIG.reminderMinutesBefore);
+    if (CONFIG.useReminders) {
+      eventSeries.addPopupReminder(CONFIG.reminderMinutesBefore);
+    }
     Logger.log(`🎉 Created RECURRING event: ${expectedTitle} [starts ${birthdayStartDate.toDateString()}]`);
   } else {
     // Create single event for this year
     const event = calendar.createAllDayEvent(
       expectedTitle,
       birthdayDateThisYear,
-      { description: eventDescription }
+      { description: expectedDescription }
     );
-    event.addPopupReminder(CONFIG.reminderMinutesBefore);
+    if (CONFIG.useReminders) {
+      event.addPopupReminder(CONFIG.reminderMinutesBefore);
+    }
     Logger.log(`🎁 Created ONE-TIME event: ${expectedTitle} [${birthdayDateThisYear.toDateString()}]`);
   }
+  
+  return eventsWereDeleted ? 'updated' : 'created'; // Successfully processed the birthday event
 }
 
 /**
@@ -501,6 +609,28 @@ function isEventCreatedByScript(event) {
     const description = event.getDescription();
     return description && description.includes(`[${CONFIG.scriptKey}]`);
   } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Check if an event has the correct reminder settings according to current configuration.
+ * @param {CalendarEvent} event - The calendar event to check
+ * @returns {boolean} - True if reminders match current CONFIG settings
+ */
+function hasCorrectReminders(event) {
+  try {
+    const reminders = event.getPopupReminders();
+    
+    if (!CONFIG.useReminders) {
+      // If reminders are disabled, event should have no reminders
+      return reminders.length === 0;
+    } else {
+      // If reminders are enabled, event should have exactly one reminder with correct timing
+      return reminders.length === 1 && reminders[0] === CONFIG.reminderMinutesBefore;
+    }
+  } catch (e) {
+    // If we can't get reminders info, assume it's incorrect to be safe
     return false;
   }
 }
@@ -557,6 +687,15 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
   
   Logger.log(`🧹 Cleanup started between: ${startDate.toDateString()} - ${endDate.toDateString()}`);
 
+  // Initialize cleanup counters
+  let totalEventsScanned = allEvents.length;
+  let candidateEventsFound = 0;
+  let recurringSeriesDeleted = 0;
+  let singleEventsDeleted = 0;
+  let deleteFailures = 0;
+  let retryAttempts = 0;
+  let retrySuccesses = 0;
+
   // Collect valid contacts with birthday info
   const contactBirthdays = allContacts
     .filter(person => {
@@ -603,6 +742,8 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
 
       if (!shouldDelete) continue;
 
+      candidateEventsFound++;
+
       // Check if it's a recurring event and already handled
       if (event.isRecurringEvent && event.isRecurringEvent()) {
         try {
@@ -615,6 +756,7 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
           eventsToDelete.push({ event: series, isSeries: true });
           break;
         } catch (e) {
+          retryAttempts++;
           Logger.log(`⚠️ Failed to resolve recurring series: ${title} — ${e}`);
           Logger.log(`⚠️ Waiting for rate limiter and safely retrying`);
           Utilities.sleep(5000);
@@ -622,11 +764,13 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
             const series = event.getEventSeries();
             const seriesId = series.getId();
             if (deletedSeriesIds.has(seriesId)) {
+              retrySuccesses++;
               Logger.log(`✅ Second attempt succeeded for: ${title}`);
               break;
             }
             deletedSeriesIds.add(seriesId);
             eventsToDelete.push({ event: series, isSeries: true });
+            retrySuccesses++;
             Logger.log(`✅ Second attempt succeeded for: ${title}`);
             break;
           } catch (e) {
@@ -645,17 +789,40 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
     try {
       if (isSeries) {
         event.deleteEventSeries(); // Deletes the entire series
+        recurringSeriesDeleted++;
         Logger.log(`🧹 Deleted recurring series → ${event.getTitle()}`);
       } else {
         event.deleteEvent();
+        singleEventsDeleted++;
         Logger.log(`🧹 Deleted single event → ${event.getTitle()} on ${event.getStartTime().toDateString()}`);
       }
     } catch (e) {
+      deleteFailures++;
       Logger.log(`❌ Failed to delete event → ${event.getTitle()} | Reason: ${e}`);
     }
   }
 
-  Logger.log(`✅ Total deleted events: ${eventsToDelete.length}`);
+  // Log comprehensive cleanup summary report
+  Logger.log("🧹 CLEANUP SUMMARY REPORT:");
+  Logger.log(`📅 Events scanned in date range: ${totalEventsScanned}`);
+  Logger.log(`🎯 Birthday events found for cleanup: ${candidateEventsFound}`);
+  Logger.log(`🔄 Recurring series deleted: ${recurringSeriesDeleted}`);
+  Logger.log(`📅 Single events deleted: ${singleEventsDeleted}`);
+  
+  const totalSuccessfulDeletions = recurringSeriesDeleted + singleEventsDeleted;
+  Logger.log(`✅ Total successful deletions: ${totalSuccessfulDeletions}`);
+  
+  if (deleteFailures > 0) {
+    Logger.log(`❌ Failed deletions: ${deleteFailures}`);
+  }
+  
+  if (retryAttempts > 0) {
+    Logger.log(`🔄 Retry attempts made: ${retryAttempts}`);
+    Logger.log(`✅ Successful retries: ${retrySuccesses}`);
+  }
+  
+  Logger.log(`👥 Contacts with birthdays considered: ${contactBirthdays.length}`);
+  Logger.log("🎉 Cleanup completed successfully!");
 }
 
 /**
