@@ -459,7 +459,8 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       isEventCreatedByScript(existingQuick) &&
       (CONFIG.useRecurrence === (existingQuick.isRecurringEvent && existingQuick.isRecurringEvent())) &&
       (existingQuick.getDescription() || '') === expectedDescription &&
-      hasCorrectReminders(existingQuick)) {
+      hasCorrectReminders(existingQuick) &&
+      hasScriptTag(existingQuick)) {
     return 'skipped_existing'; // Event already exists and is correct
   }
 
@@ -483,11 +484,12 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     const isRecurrenceMismatch = CONFIG.useRecurrence !== (event.isRecurringEvent && event.isRecurringEvent());
     const isNotFromScript = !isEventCreatedByScript(event);
     const hasIncorrectReminders = !hasCorrectReminders(event);
+    const isMissingTag = !hasScriptTag(event);  // Check if event is missing the new tag
 
     // When using individual events for age display, we need to delete any existing recurring events
     const needsConversionToIndividual = usingIndividualEvents && event.isRecurringEvent && event.isRecurringEvent();
 
-    if (isTitleOutdated || isDescriptionOutdated || isNotAllDay || isRecurrenceMismatch || isNotFromScript || hasIncorrectReminders || needsConversionToIndividual) {
+    if (isTitleOutdated || isDescriptionOutdated || isNotAllDay || isRecurrenceMismatch || isNotFromScript || hasIncorrectReminders || isMissingTag || needsConversionToIndividual) {
       eventsWereDeleted = true;
       try {
         if (event.isRecurringEvent && event.isRecurringEvent()) {
@@ -532,7 +534,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       
       const yearKey = `${yearTitle}|${month}|${day}`;
       const yearEvent = eventIndex.get(yearKey);
-      if (!yearEvent || !isEventCreatedByScript(yearEvent) || (yearEvent.getDescription() || '') !== expectedDescription || !hasCorrectReminders(yearEvent)) {
+      if (!yearEvent || !isEventCreatedByScript(yearEvent) || (yearEvent.getDescription() || '') !== expectedDescription || !hasCorrectReminders(yearEvent) || !hasScriptTag(yearEvent)) {
         allYearsExist = false;
         break;
       }
@@ -567,6 +569,8 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       if (CONFIG.useReminders) {
         event.addPopupReminder(CONFIG.reminderMinutesBefore);
       }
+      // Add script identification tag
+      addScriptTag(event);
       Logger.log(`🎁 Created individual event: ${yearTitle} [${yearBirthdayDate.toDateString()}]`);
     }
   } else if (CONFIG.useRecurrence) {
@@ -584,6 +588,8 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     if (CONFIG.useReminders) {
       eventSeries.addPopupReminder(CONFIG.reminderMinutesBefore);
     }
+    // Add script identification tag
+    addScriptTag(eventSeries);
     Logger.log(`🎉 Created RECURRING event: ${expectedTitle} [starts ${birthdayStartDate.toDateString()}]`);
   } else {
     // Create single event for this year
@@ -595,6 +601,8 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     if (CONFIG.useReminders) {
       event.addPopupReminder(CONFIG.reminderMinutesBefore);
     }
+    // Add script identification tag
+    addScriptTag(event);
     Logger.log(`🎁 Created ONE-TIME event: ${expectedTitle} [${birthdayDateThisYear.toDateString()}]`);
   }
   
@@ -602,10 +610,129 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
 }
 
 /**
- * Check if an event was created by this script by looking for the script key in description.
+ * Add script identification tag to an event using extended properties.
+ * @param {CalendarEvent|CalendarEventSeries} event - The event to tag
+ */
+function addScriptTag(event) {
+  try {
+    // Use Calendar API to add extended properties
+    const calendarId = event.getOriginalCalendarId ? event.getOriginalCalendarId() : CONFIG.calendarId;
+    const eventId = event.getId();
+    
+    // Get the event using Calendar API to add extended properties
+    const apiEvent = Calendar.Events.get(calendarId, eventId);
+    
+    // Add our script identifier as an extended property
+    if (!apiEvent.extendedProperties) {
+      apiEvent.extendedProperties = {};
+    }
+    if (!apiEvent.extendedProperties.private) {
+      apiEvent.extendedProperties.private = {};
+    }
+    
+    apiEvent.extendedProperties.private[CONFIG.scriptKey] = 'true';
+    apiEvent.extendedProperties.private.scriptVersion = '1.0';
+    
+    // Update the event with the extended properties
+    Calendar.Events.update(apiEvent, calendarId, eventId);
+  } catch (e) {
+    Logger.log(`⚠️ Failed to add script tag to event: ${e}`);
+    // Fallback: we'll still rely on description for identification
+  }
+}
+
+/**
+ * Get events created by this script using advanced Calendar API query.
+ * This is more efficient than scanning all events when doing cleanup operations.
+ * @param {Calendar} calendar - The calendar to search
+ * @param {Date} timeMin - Start time for search
+ * @param {Date} timeMax - End time for search
+ * @returns {CalendarEvent[]} - Array of events created by this script
+ */
+function getScriptEvents(calendar, timeMin, timeMax) {
+  try {
+    const calendarId = calendar.getId();
+    
+    // Try to use Calendar API to search by extended properties
+    // Note: This is more efficient but may not be supported in all Apps Script versions
+    const events = [];
+    let pageToken;
+    
+    do {
+      const response = Calendar.Events.list(calendarId, {
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: true,
+        maxResults: 250,
+        pageToken: pageToken
+      });
+      
+      if (response.items) {
+        // Filter events that have our script tag
+        const scriptEvents = response.items.filter(apiEvent => {
+          return apiEvent.extendedProperties &&
+                 apiEvent.extendedProperties.private &&
+                 apiEvent.extendedProperties.private[CONFIG.scriptKey] === 'true';
+        });
+        
+        // Convert API events back to CalendarEvent objects
+        for (const apiEvent of scriptEvents) {
+          try {
+            const calendarEvent = calendar.getEventById(apiEvent.id);
+            if (calendarEvent) {
+              events.push(calendarEvent);
+            }
+          } catch (e) {
+            // Event might be part of a recurring series, skip individual instances
+            Logger.log(`⚠️ Skipped event ${apiEvent.summary}: ${e}`);
+          }
+        }
+      }
+      
+      pageToken = response.nextPageToken;
+    } while (pageToken);
+    
+    return events;
+  } catch (e) {
+    Logger.log(`⚠️ Failed to get script events via API: ${e}`);
+    // Fallback to scanning all events with the old method
+    return [];
+  }
+}
+
+/**
+ * Check if an event has the script tag (extended properties).
+ * @param {CalendarEvent} event - The event to check
+ * @returns {boolean} - True if event has the script tag
+ */
+function hasScriptTag(event) {
+  try {
+    const calendarId = event.getOriginalCalendarId ? event.getOriginalCalendarId() : CONFIG.calendarId;
+    const eventId = event.getId();
+    
+    const apiEvent = Calendar.Events.get(calendarId, eventId);
+    return apiEvent.extendedProperties && 
+           apiEvent.extendedProperties.private && 
+           apiEvent.extendedProperties.private[CONFIG.scriptKey] === 'true';
+  } catch (e) {
+    // If we can't check the tag, assume it doesn't have it
+    return false;
+  }
+}
+
+/**
+ * Check if an event was created by this script by looking for script tags first, then description as fallback.
+ * @param {CalendarEvent} event - The event to check
+ * @returns {boolean} - True if event was created by this script
  */
 function isEventCreatedByScript(event) {
   try {
+    // First try to check extended properties (new tag-based approach)
+    if (hasScriptTag(event)) {
+      return true;
+    }
+    
+    // Fallback to description-based checking for backward compatibility
     const description = event.getDescription();
     return description && description.includes(`[${CONFIG.scriptKey}]`);
   } catch (e) {
@@ -683,18 +810,18 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
 
   const startDate = new Date(startYear, 0, 1);
   const endDate = new Date(endYear, 11, 31);
-  const allEvents = calendar.getEvents(startDate, endDate);
   
   Logger.log(`🧹 Cleanup started between: ${startDate.toDateString()} - ${endDate.toDateString()}`);
 
   // Initialize cleanup counters
-  let totalEventsScanned = allEvents.length;
+  let totalEventsScanned = 0;
   let candidateEventsFound = 0;
   let recurringSeriesDeleted = 0;
   let singleEventsDeleted = 0;
   let deleteFailures = 0;
   let retryAttempts = 0;
   let retrySuccesses = 0;
+  let usingTagBasedQuery = false;
 
   // Collect valid contacts with birthday info
   const contactBirthdays = allContacts
@@ -722,15 +849,41 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
   const deletedSeriesIds = new Set();
   const eventsToDelete = [];
 
-  // Phase 1: Scan events and mark candidates for deletion
-  Logger.log(`🔍 Scanning ${allEvents.length} events to identify birthday events for cleanup...`);
+  // Phase 1: Try to get script events efficiently using tags, fallback to scanning all events
+  Logger.log(`🔍 Looking for birthday events created by this script...`);
+  
+  let candidateEvents = [];
+  
+  // Try to use efficient tag-based query first
+  try {
+    candidateEvents = getScriptEvents(calendar, startDate, endDate);
+    if (candidateEvents.length > 0) {
+      usingTagBasedQuery = true;
+      Logger.log(`✅ Found ${candidateEvents.length} tagged events using efficient query`);
+    }
+  } catch (e) {
+    Logger.log(`⚠️ Tag-based query failed, falling back to full scan: ${e}`);
+  }
+  
+  // If tag-based query didn't work or returned no results, fall back to scanning all events
+  if (candidateEvents.length === 0) {
+    Logger.log(`🔍 Performing full event scan for cleanup (fallback mode)...`);
+    const allEvents = calendar.getEvents(startDate, endDate);
+    totalEventsScanned = allEvents.length;
+    
+    // Filter to only events created by this script
+    candidateEvents = allEvents.filter(event => isEventCreatedByScript(event));
+    Logger.log(`📋 Found ${candidateEvents.length} script events out of ${totalEventsScanned} total events`);
+  } else {
+    totalEventsScanned = candidateEvents.length; // We only scanned script events
+  }
 
-  for (const event of allEvents) {
+  // Phase 2: Process candidate events and mark for deletion if they match contacts
+  for (const event of candidateEvents) {
     const title = event.getTitle();
     const start = event.getStartTime();
     const isAllDay = event.isAllDayEvent();
     const startsWithCakeEmoji = title.trim().startsWith('🎂');
-    const isFromScript = isEventCreatedByScript(event);
 
     for (const contact of contactBirthdays) {
       const isNameMatch = title.includes(contact.name);
@@ -739,9 +892,8 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
         start.getMonth() === contact.month;
 
       const shouldDelete =
-        isFromScript && // Only delete events created by this script
-        ((startsWithCakeEmoji && isNameMatch) ||
-         (isAllDay && isNameMatch && isBirthdayDateMatch));
+        (startsWithCakeEmoji && isNameMatch) ||
+        (isAllDay && isNameMatch && isBirthdayDateMatch);
 
       if (!shouldDelete) continue;
 
@@ -789,7 +941,7 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
     }
   }
 
-  // Phase 2: Execute deletions for all marked events
+  // Phase 3: Execute deletions for all marked events
   Logger.log(`🗑️ Starting deletion of ${eventsToDelete.length} marked events (${deletedSeriesIds.size} recurring series, ${eventsToDelete.length - deletedSeriesIds.size} single events)`);
   
   for (const { event, isSeries } of eventsToDelete) {
@@ -811,7 +963,11 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
 
   // Log comprehensive cleanup summary report
   Logger.log("🧹 CLEANUP SUMMARY REPORT:");
-  Logger.log(`📅 Events scanned in date range: ${totalEventsScanned}`);
+  if (usingTagBasedQuery) {
+    Logger.log(`✅ Used efficient tag-based query to find script events`);
+  } else {
+    Logger.log(`📅 Events scanned in date range: ${totalEventsScanned}`);
+  }
   Logger.log(`🎯 Birthday events found for cleanup: ${candidateEventsFound}`);
   Logger.log(`🔄 Recurring series deleted: ${recurringSeriesDeleted}`);
   Logger.log(`📅 Single events deleted: ${singleEventsDeleted}`);
