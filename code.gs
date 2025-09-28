@@ -139,7 +139,8 @@ function loopThroughContacts() {
   if (CONFIG.cleanupEvents) {
     Logger.log("🧹 Starting cleanup of old birthday events...");
     cleanupOldBirthdayEvents(calendar, connections);
-    Logger.log(""); // Empty line for separation
+    Logger.log("🎉 Cleanup completed! Script will now exit without recreating events.");
+    return;
   }
 
   Logger.log("📊 Starting birthday event processing...");
@@ -285,7 +286,7 @@ function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurri
     .replace(/{emoji}/g, emoji)
     .replace(/{name}/g, contactName)
     .replace(/{ageOrYear}/g, ageOrYear)
-    .replace(/{age}/g, '${age}')
+    .replace(/{age}/g, age ? age.toString() : '')
     .replace(/{ageText}/g, ageText)
     .replace(/{birthYear}/g, birthYear ? birthYear.toString() : '')
     .replace(/{years}/g, langConfig.terms.years)
