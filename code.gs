@@ -286,7 +286,7 @@ function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurri
     .replace(/{emoji}/g, emoji)
     .replace(/{name}/g, contactName)
     .replace(/{ageOrYear}/g, ageOrYear)
-    .replace(/{age}/g, age.toString())
+    .replace(/{age}/g, age ? age.toString() : '')
     .replace(/{ageText}/g, ageText)
     .replace(/{birthYear}/g, birthYear ? birthYear.toString() : '')
     .replace(/{years}/g, langConfig.terms.years)
