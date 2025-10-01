@@ -255,6 +255,20 @@ titleFormat: '{emoji}{name} compie {ageText}'
 - This allows you to see all future birthdays with correct ages when browsing your calendar
 - Individual events span from `pastYears` to `futureYears` relative to the current year
 
+> Review the [Configuration section](#️-configuration) to understand all available settings.
+
+> **⏱️ EXECUTION TIME LIMIT**  
+> Google Apps Script has a **6-minute maximum execution time**. The script may timeout before completing if you have:
+> - A large number of contacts (hundreds or thousands)
+> - Large year spans (`pastYears` + `futureYears` > 40)
+> - Both `useRecurrence=false` and `showAgeOnRecurring=true` (creates individual events for each year)
+>
+> **To reduce timeout risk:**
+> - Start with smaller year spans (e.g., `pastYears: 1`, `futureYears: 10`)
+> - Use [month filtering](#-month-filtering) to process contacts in batches
+> - If the script times out, simply **re-run it** - it will continue where it left off
+> - Consider using `useRecurrence=true` for better performance with large datasets
+
 ---
 
 ## 🧹 Automatic Cleanup
