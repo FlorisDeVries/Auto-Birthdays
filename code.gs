@@ -272,8 +272,8 @@ function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurri
   
   if (birthYear && CONFIG.showYearOrAge) {
     if (showYear) {
-      ageOrYear = `*${birthYear}`;
-      ageText = `*${birthYear}`;
+      ageOrYear = `${birthYear}`;
+      ageText = `${birthYear}`;
     } else if (age !== null) {
       const yearWord = age === 1 ? langConfig.terms.year : langConfig.terms.years;
       ageOrYear = age.toString();
