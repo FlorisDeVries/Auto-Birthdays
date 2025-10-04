@@ -478,7 +478,22 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     } catch (e) {
       description = '';
     }
-    const isTitleOutdated = title !== expectedTitle;
+    
+    // For individual age events, generate the expected title for the event's specific year
+    let eventExpectedTitle = expectedTitle;
+    if (usingIndividualEvents) {
+      const eventYear = event.getStartTime().getFullYear();
+      const eventAge = birthdayDate.year ? eventYear - birthdayDate.year : null;
+      eventExpectedTitle = generateLocalizedTitle(
+        contactName,
+        eventAge,
+        birthdayDate.year,
+        false, // Always show age for individual events
+        false  // Individual events are not recurring
+      );
+    }
+    
+    const isTitleOutdated = title !== eventExpectedTitle;
     const isDescriptionOutdated = description !== expectedDescription;
     const isNotAllDay = !event.isAllDayEvent();
     const isRecurrenceMismatch = CONFIG.useRecurrence !== (event.isRecurringEvent && event.isRecurringEvent());
