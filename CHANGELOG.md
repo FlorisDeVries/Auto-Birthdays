@@ -2,6 +2,13 @@
 
 All notable changes to Auto-Birthdays will be documented in this file.
 
+## [1.2.0] - 2026-02-04
+
+### Added
+- Added `setTransparency` configuration option to control calendar availability settings
+- Events can now be set to show you as "available" (transparent) instead of the default "busy" (opaque)
+- Transparency setting applies to all event types: recurring, individual age events, and one-time events
+
 ## [1.1.0] - 2026-02-04
 
 ### Fixed
