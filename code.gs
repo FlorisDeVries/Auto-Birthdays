@@ -1,6 +1,6 @@
 /******************************
  * CONFIGURATION
- * Version: 1.0
+ * Version: 1.1
  ******************************/
 const CONFIG = {
   calendarId: 'primary',            // 'primary' or your calendar ID
