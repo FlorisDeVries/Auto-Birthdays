@@ -1,14 +1,14 @@
 /******************************
  * CONFIGURATION
- * Version: 1.0
+ * Version: 1.1
  ******************************/
 const CONFIG = {
   calendarId: 'primary',            // 'primary' or your calendar ID
 
   // Title customization
-  useEmoji: true,                    // Add 🎂 emoji to event titles
-  showYearOrAge: true,               // Recurrence on: shows (*YYYY), off: shows (age)
-  showAgeOnRecurring: false,         // If true, shows (age) on recurring events instead of (*YYYY)
+  useEmoji: true,                    // Add 🎂 emoji to event titles. Only affects default title formats.
+  showYearOrAge: false,               // Recurrence on: shows (*YYYY), off: shows (age). Only affects default title formats.
+  showAgeOnRecurring: true,         // If true, shows (age) on recurring events instead of (*YYYY)
   
   // Language and localization
   language: 'en',                    // Language code: 'en' (English), 'it' (Italian), 'fr' (French), 'de' (German), 'es' (Spanish)
@@ -16,7 +16,7 @@ const CONFIG = {
 
   // Recurrence
   useRecurrence: true,               // Create recurring yearly events
-  futureYears: 10,                   // Recurring events end this many years in the future
+  futureYears: 2,                   // Recurring events end this many years in the future
   pastYears: 1,                      // Recurring events start this many years in the past
 
   // Reminder settings
@@ -267,13 +267,17 @@ function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurri
   
   // Use titleFormat if provided, otherwise fall back to language default
   const formatTemplate = CONFIG.titleFormat || langConfig.titleFormats['default'];
+  const usingCustomFormat = CONFIG.titleFormat && CONFIG.titleFormat.trim() !== '';
   
   // Build replacement values
-  const emoji = CONFIG.useEmoji ? '🎂 ' : '';
+  // useEmoji only applies to default formats; custom formats control emoji via {emoji} placeholder
+  const emoji = (usingCustomFormat || CONFIG.useEmoji) ? '🎂 ' : '';
   let ageOrYear = '';
   let ageText = '';
   
-  if (birthYear && CONFIG.showYearOrAge) {
+  // Always populate age-related variables if we have the data (regardless of showYearOrAge setting)
+  // The showYearOrAge setting only affects default formats, not custom formats
+  if (birthYear) {
     if (showYear) {
       ageOrYear = `${birthYear}`;
       ageText = `${birthYear}`;
@@ -289,11 +293,11 @@ function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurri
     .replace(/{emoji}/g, emoji)
     .replace(/{name}/g, contactName)
     .replace(/{ageOrYear}/g, ageOrYear)
-    .replace(/{age}/g, age ? age.toString() : '')
+    .replace(/{age}/g, age !== null ? age.toString() : '')
     .replace(/{ageText}/g, ageText)
     .replace(/{birthYear}/g, birthYear ? birthYear.toString() : '')
-    .replace(/{years}/g, langConfig.terms.years)
-    .replace(/{year}/g, langConfig.terms.year)
+    .replace(/{years}/g, (age !== null && age !== 1) ? langConfig.terms.years : '')  // Plural form
+    .replace(/{year}/g, age === 1 ? langConfig.terms.year : '')  // Singular form only for age 1
     .replace(/{birthday}/g, langConfig.terms.birthday);
   
   // Clean up empty age/year information - remove parentheses, dashes, etc. around empty values
@@ -301,6 +305,7 @@ function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurri
     .replace(/\s*\(\s*\)\s*/g, '')        // Remove empty parentheses like " () "
     .replace(/\s*\(\s*\*\s*\)\s*/g, '')   // Remove empty year parentheses like " (*) "
     .replace(/\s*-\s*\*?\s*$/g, '')       // Remove trailing " - " or " - *"
+    .replace(/\s*-\s*$/g, '')             // Remove trailing " - "
     .replace(/\s+/g, ' ');                // Clean up multiple spaces
     
   return title.trim();
@@ -499,15 +504,26 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
     const isTitleOutdated = title !== eventExpectedTitle;
     const isDescriptionOutdated = description !== expectedDescription;
     const isNotAllDay = !event.isAllDayEvent();
-    const isRecurrenceMismatch = CONFIG.useRecurrence !== (event.isRecurringEvent && event.isRecurringEvent());
+    
+    // When using individual events (showAgeOnRecurring), events should NOT be recurring
+    // When not using individual events, recurrence should match CONFIG.useRecurrence
+    const eventIsRecurring = event.isRecurringEvent && event.isRecurringEvent();
+    const isRecurrenceMismatch = usingIndividualEvents 
+      ? eventIsRecurring  // Individual events should not be recurring
+      : CONFIG.useRecurrence !== eventIsRecurring;  // Otherwise match config
+    
     const isNotFromScript = !isEventCreatedByScript(event);
     const hasIncorrectReminders = !hasCorrectReminders(event);
 
     // When using individual events for age display, we need to delete any existing recurring events
-    const needsConversionToIndividual = usingIndividualEvents && event.isRecurringEvent && event.isRecurringEvent();
+    const needsConversionToIndividual = usingIndividualEvents && eventIsRecurring;
 
     if (isTitleOutdated || isDescriptionOutdated || isNotAllDay || isRecurrenceMismatch || isNotFromScript || hasIncorrectReminders || needsConversionToIndividual) {
       eventsWereDeleted = true;
+
+      // Log the reason for deletion
+      Logger.log(`🗑️ Deleting outdated event: ${title} | Reasons: ${isTitleOutdated ? 'Title ' : ''}${isDescriptionOutdated ? 'Description ' : ''}${isNotAllDay ? 'NotAllDay ' : ''}${isRecurrenceMismatch ? 'RecurrenceMismatch ' : ''}${isNotFromScript ? 'NotFromScript ' : ''}${hasIncorrectReminders ? 'IncorrectReminders ' : ''}${needsConversionToIndividual ? 'NeedsConversionToIndividual ' : ''}`);
+
       try {
         if (event.isRecurringEvent && event.isRecurringEvent()) {
           const series = event.getEventSeries();
