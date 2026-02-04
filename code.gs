@@ -637,7 +637,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       event.addPopupReminder(CONFIG.reminderMinutesBefore);
     }
     if (CONFIG.setTransparency) {
-      eventSeries.setTransparency(CalendarApp.EventTransparency.TRANSPARENT);
+      event.setTransparency(CalendarApp.EventTransparency.TRANSPARENT);
     }
     Logger.log(`🎁 Created ONE-TIME event: ${expectedTitle} [${birthdayDateThisYear.toDateString()}]`);
   }
