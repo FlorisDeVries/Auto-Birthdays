@@ -24,7 +24,7 @@ const CONFIG = {
   reminderMinutesBefore: 1440,       // Popup reminder time (in minutes) - only used if useReminders is true
                                      // Common values: 0 = at event time, 60 = 1 hour before, 1440 = 1 day before, 10080 = 1 week before
 
-  // Avaiability settings
+  // Availability settings
   setTransparency: false,            // Events display you as busy by default (Transparency OPAQUE). Set to true to display you as available (Transparency TRANSPARENT).
 
   // Cleanup
