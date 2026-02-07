@@ -2,6 +2,18 @@
 
 All notable changes to Auto-Birthdays will be documented in this file.
 
+## [1.3.0] - 2026-02-07
+
+### Fixed
+- Fixed trigger management to properly detect configuration changes (hourly vs daily, daily hour)
+- Triggers now use PropertiesService to store and compare configuration between runs
+- Fixed incomplete series creation when script times out during individual event creation
+- Script now properly completes partial series on next run without duplicating events
+
+### Changed
+- Updated `{years}` wildcard to automatically handle singular/plural forms ("year" for age 1, "years" otherwise)
+- Updated default titleFormats for all languages to use `{age} {years}` pattern for consistency
+
 ## [1.2.0] - 2026-02-04
 
 ### Added
