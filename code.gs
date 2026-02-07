@@ -324,7 +324,7 @@ function generateLocalizedDescription(contactName) {
 }
 
 /**
- * Build a quick‑lookup map keying events by “title|month|day”.
+ * Build a quick‑lookup map keying events by "title|month|day|year".
  * Significantly reduces runtime from O(contacts × events) to O(contacts + events).
  */
 function buildBirthdayIndex(events) {
@@ -332,7 +332,7 @@ function buildBirthdayIndex(events) {
   for (const ev of events) {
     if (!ev.isAllDayEvent()) continue;
     const d   = ev.getStartTime();
-    const key = `${ev.getTitle()}|${d.getMonth()}|${d.getDate()}`;
+    const key = `${ev.getTitle()}|${d.getMonth()}|${d.getDate()}|${d.getFullYear()}`;
     map.set(key, ev);
   }
   return map;
@@ -457,11 +457,12 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
   const expectedDescription = generateLocalizedDescription(contactName);
 
   // FAST existence check
-  const key = `${expectedTitle}|${month}|${day}`;
-  const existingQuick = eventIndex.get(key);
-  
-  // For individual age events, we need to check differently
+  // For individual events, include current year in key; for recurring events, year doesn't matter
   const usingIndividualEvents = CONFIG.useRecurrence && CONFIG.showAgeOnRecurring && birthdayDate.year;
+  const key = usingIndividualEvents 
+    ? `${expectedTitle}|${month}|${day}|${currentYear}`
+    : `${expectedTitle}|${month}|${day}|${currentYear}`;
+  const existingQuick = eventIndex.get(key);
   
   if (!usingIndividualEvents && existingQuick &&
       existingQuick.isAllDayEvent() &&
@@ -570,7 +571,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
         false  // Individual events are not recurring
       );
       
-      const yearKey = `${yearTitle}|${month}|${day}`;
+      const yearKey = `${yearTitle}|${month}|${day}|${year}`;
       const yearEvent = eventIndex.get(yearKey);
       if (!yearEvent || !isEventCreatedByScript(yearEvent) || (yearEvent.getDescription() || '') !== expectedDescription || !hasCorrectReminders(yearEvent)) {
         allYearsExist = false;
@@ -602,7 +603,7 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       );
       
       // Check if this specific year already exists and is correct
-      const yearKey = `${yearTitle}|${month}|${day}`;
+      const yearKey = `${yearTitle}|${month}|${day}|${year}`;
       const existingYearEvent = eventIndex.get(yearKey);
       if (existingYearEvent && 
           isEventCreatedByScript(existingYearEvent) && 
