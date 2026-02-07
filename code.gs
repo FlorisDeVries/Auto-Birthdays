@@ -1,6 +1,6 @@
 /******************************
  * CONFIGURATION
- * Version: 1.2
+ * Version: 1.3.0
  ******************************/
 const CONFIG = {
   calendarId: 'primary',            // 'primary' or your calendar ID
@@ -53,7 +53,7 @@ const CONFIG = {
 const LANGUAGE_CONFIG = {
   en: {
     titleFormats: {
-      'default': '{emoji}{name} ({ageOrYear})'
+      'default': '{emoji}{name} - {age} {years}'
     },
     terms: {
       'age': 'age',
@@ -65,7 +65,7 @@ const LANGUAGE_CONFIG = {
   },
   it: {
     titleFormats: {
-      'default': '{emoji}Compleanno di {name} - {age} anni'
+      'default': '{emoji}Compleanno di {name} - {age} {years}'
     },
     terms: {
       'age': 'età',
@@ -77,7 +77,7 @@ const LANGUAGE_CONFIG = {
   },
   fr: {
     titleFormats: {
-      'default': '{emoji}Anniversaire de {name} - {age} ans'
+      'default': '{emoji}Anniversaire de {name} - {age} {years}'
     },
     terms: {
       'age': 'âge',
@@ -89,7 +89,7 @@ const LANGUAGE_CONFIG = {
   },
   de: {
     titleFormats: {
-      'default': '{emoji}Geburtstag von {name} - {age} Jahre'
+      'default': '{emoji}Geburtstag von {name} - {age} {years}'
     },
     terms: {
       'age': 'Alter',
@@ -101,7 +101,7 @@ const LANGUAGE_CONFIG = {
   },
   es: {
     titleFormats: {
-      'default': '{emoji}Cumpleaños de {name} - {age} años'
+      'default': '{emoji}Cumpleaños de {name} - {age} {years}'
     },
     terms: {
       'age': 'edad',
@@ -296,8 +296,8 @@ function generateLocalizedTitle(contactName, age, birthYear, showYear, isRecurri
     .replace(/{age}/g, age !== null ? age.toString() : '')
     .replace(/{ageText}/g, ageText)
     .replace(/{birthYear}/g, birthYear ? birthYear.toString() : '')
-    .replace(/{years}/g, (age !== null && age !== 1) ? langConfig.terms.years : '')  // Plural form
-    .replace(/{year}/g, age === 1 ? langConfig.terms.year : '')  // Singular form only for age 1
+    .replace(/{years}/g, age === 1 ? langConfig.terms.year : (age !== null ? langConfig.terms.years : ''))  // Automatically singular/plural
+    .replace(/{year}/g, age === 1 ? langConfig.terms.year : '')  // Singular form only for age 1 (for backwards compatibility)
     .replace(/{birthday}/g, langConfig.terms.birthday);
   
   // Clean up empty age/year information - remove parentheses, dashes, etc. around empty values
@@ -542,11 +542,16 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
         Logger.log(`❌ Error deleting event: ${title} → ${e}`);
       }
     } else {
-      correctEventExists = true;
+      // Only set correctEventExists for non-individual events
+      // For individual events, we need to check if ALL years exist, not just one
+      if (!usingIndividualEvents) {
+        correctEventExists = true;
+      }
     }
   }
 
-  if (correctEventExists) {
+  // For non-individual events, if a correct event exists, skip
+  if (correctEventExists && !usingIndividualEvents) {
     return 'skipped_existing'; // Correct event already exists
   }
 
@@ -581,6 +586,8 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
   // Create events - individual yearly events if showing age on recurring, otherwise use recurrence
   if (CONFIG.useRecurrence && CONFIG.showAgeOnRecurring && birthdayDate.year) {
     // Create individual events for each year to show correct age
+    // Only create years that don't already exist (handles timeout recovery)
+    let createdCount = 0;
     for (let year = startYear; year <= currentYear + CONFIG.futureYears; year++) {
       const yearAge = year - birthdayDate.year;
       const yearBirthdayDate = new Date(year, month, day);
@@ -594,6 +601,17 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
         false  // Individual events are not recurring
       );
       
+      // Check if this specific year already exists and is correct
+      const yearKey = `${yearTitle}|${month}|${day}`;
+      const existingYearEvent = eventIndex.get(yearKey);
+      if (existingYearEvent && 
+          isEventCreatedByScript(existingYearEvent) && 
+          (existingYearEvent.getDescription() || '') === expectedDescription && 
+          hasCorrectReminders(existingYearEvent)) {
+        // This year already has a correct event, skip it
+        continue;
+      }
+      
       const event = calendar.createAllDayEvent(
         yearTitle,
         yearBirthdayDate,
@@ -605,7 +623,11 @@ function updateOrCreateBirthDayEvent(person, birthdayRaw, calendar, allEvents, e
       if (CONFIG.setTransparency) {
         event.setTransparency(CalendarApp.EventTransparency.TRANSPARENT);
       }
+      createdCount++;
       Logger.log(`🎁 Created individual event: ${yearTitle} [${yearBirthdayDate.toDateString()}]`);
+    }
+    if (createdCount === 0) {
+      return 'skipped_existing'; // All individual events already existed
     }
   } else if (CONFIG.useRecurrence) {
     // Create standard recurring event
@@ -878,17 +900,41 @@ function cleanupOldBirthdayEvents(calendar, allContacts) {
 
 /**
  * Ensure a correct time-based trigger exists for loopThroughContacts.
- * Removes old one and creates a new one according to CONFIG.
+ * Uses PropertiesService to track trigger configuration and detect changes.
  */
 function ensureTriggerExists() {
   const triggers = ScriptApp.getProjectTriggers();
+  const properties = PropertiesService.getScriptProperties();
+  let existingTrigger = null;
+  
+  // Find existing trigger for loopThroughContacts
   for (const trigger of triggers) {
     if (trigger.getHandlerFunction() === 'loopThroughContacts') {
-      ScriptApp.deleteTrigger(trigger);
-      Logger.log("🗑️ Removed outdated trigger for loopThroughContacts");
+      existingTrigger = trigger;
+      break;
     }
   }
+  
+  // Check if existing trigger matches current configuration
+  if (existingTrigger) {
+    const storedFrequency = properties.getProperty('triggerFrequency');
+    const storedHour = properties.getProperty('triggerHour');
+    
+    // Compare stored configuration with current CONFIG
+    const frequencyMatches = storedFrequency === CONFIG.triggerFrequency;
+    const hourMatches = CONFIG.triggerFrequency === 'hourly' || storedHour === String(CONFIG.triggerHour);
+    
+    if (frequencyMatches && hourMatches) {
+      Logger.log(`✓ Trigger already exists and is up-to-date (${CONFIG.triggerFrequency}${CONFIG.triggerFrequency === 'daily' ? ' at ' + CONFIG.triggerHour + ':00' : ''})`);
+      return;
+    }
+    
+    // Configuration changed - delete old trigger
+    ScriptApp.deleteTrigger(existingTrigger);
+    Logger.log(`🗑️ Removed outdated trigger (was: ${storedFrequency}${storedFrequency === 'daily' ? ' at ' + storedHour + ':00' : ''})`);
+  }
 
+  // Create new trigger with current configuration
   const builder = ScriptApp.newTrigger('loopThroughContacts').timeBased();
   if (CONFIG.triggerFrequency === 'hourly') {
     builder.everyHours(1);
@@ -899,6 +945,10 @@ function ensureTriggerExists() {
   }
 
   builder.create();
+  
+  // Store current configuration in PropertiesService for future comparison
+  properties.setProperty('triggerFrequency', CONFIG.triggerFrequency);
+  properties.setProperty('triggerHour', String(CONFIG.triggerHour));
 }
 
 /**
@@ -906,10 +956,16 @@ function ensureTriggerExists() {
  */
 function removeTriggerIfExists() {
   const triggers = ScriptApp.getProjectTriggers();
+  const properties = PropertiesService.getScriptProperties();
+  
   for (const trigger of triggers) {
     if (trigger.getHandlerFunction() === 'loopThroughContacts') {
       ScriptApp.deleteTrigger(trigger);
       Logger.log("🗑️ Removed existing trigger");
     }
   }
+  
+  // Clean up stored trigger configuration
+  properties.deleteProperty('triggerFrequency');
+  properties.deleteProperty('triggerHour');
 }
